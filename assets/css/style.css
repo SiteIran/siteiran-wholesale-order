@@ -27,13 +27,13 @@
     width: 100%;
 }
 
+/* Filter Form */
+.form-label {
+    font-weight: bold;
+}
+
 @media (max-width: 768px) {
     .siwo-dashboard {
         flex-direction: column;
     }
-}
-
-/* Bootstrap Overrides */
-.btn {
-    margin-right: 5px;
 }
