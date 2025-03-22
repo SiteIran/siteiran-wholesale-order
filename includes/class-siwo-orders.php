@@ -13,8 +13,11 @@ class SIWO_Orders {
         // Filter parameters
         $filter_status = isset($_GET['filter_status']) ? sanitize_text_field($_GET['filter_status']) : '';
         $filter_customer = isset($_GET['filter_customer']) ? sanitize_text_field($_GET['filter_customer']) : '';
+        $filter_date_start = isset($_GET['filter_date_start']) ? sanitize_text_field($_GET['filter_date_start']) : '';
+        $filter_date_end = isset($_GET['filter_date_end']) ? sanitize_text_field($_GET['filter_date_end']) : '';
+        $filter_search = isset($_GET['filter_search']) ? sanitize_text_field($_GET['filter_search']) : '';
 
-        // Query arguments
+        // Base query arguments
         $args = [
             'post_type' => 'siwo_order',
             'posts_per_page' => -1,
@@ -37,8 +40,46 @@ class SIWO_Orders {
             ];
         }
 
+        if ($filter_date_start || $filter_date_end) {
+            $args['date_query'] = [];
+            if ($filter_date_start) {
+                $args['date_query']['after'] = $filter_date_start;
+            }
+            if ($filter_date_end) {
+                $args['date_query']['before'] = $filter_date_end;
+            }
+            $args['date_query']['inclusive'] = true;
+        }
+
+        // Initial query to get all orders based on other filters
         $orders = get_posts($args);
-        $users = get_users(['fields' => ['ID', 'display_name']]); // برای لیست مشتریان
+
+        // Custom search filter for title and products
+        if ($filter_search) {
+            $filtered_orders = [];
+            foreach ($orders as $order) {
+                $title_match = stripos($order->post_title, $filter_search) !== false;
+                $products = get_post_meta($order->ID, 'siwo_products', true);
+                $product_match = false;
+
+                if ($products && is_array($products)) {
+                    foreach ($products as $product_id => $quantity) {
+                        $product = wc_get_product($product_id);
+                        if ($product && stripos($product->get_name(), $filter_search) !== false) {
+                            $product_match = true;
+                            break;
+                        }
+                    }
+                }
+
+                if ($title_match || $product_match) {
+                    $filtered_orders[] = $order;
+                }
+            }
+            $orders = $filtered_orders; // Replace orders with filtered results
+        }
+
+        $users = get_users(['fields' => ['ID', 'display_name']]);
         ?>
         <div class="wrap siwo-wrap">
             <h1 class="mb-4"><?php _e('Wholesale Orders', 'siteiran-wholesale'); ?></h1>
@@ -47,8 +88,8 @@ class SIWO_Orders {
             <form method="get" class="mb-4">
                 <input type="hidden" name="page" value="siwo-orders">
                 <div class="row g-3 align-items-end">
-                    <div class="col-md-3">
-                        <label class="form-label"><?php _e('Filter by Status', 'siteiran-wholesale'); ?></label>
+                    <div class="col-md-2">
+                        <label class="form-label"><?php _e('Status', 'siteiran-wholesale'); ?></label>
                         <select name="filter_status" class="form-select">
                             <option value=""><?php _e('All Statuses', 'siteiran-wholesale'); ?></option>
                             <option value="pending" <?php selected($filter_status, 'pending'); ?>><?php _e('Pending', 'siteiran-wholesale'); ?></option>
@@ -56,14 +97,26 @@ class SIWO_Orders {
                             <option value="completed" <?php selected($filter_status, 'completed'); ?>><?php _e('Completed', 'siteiran-wholesale'); ?></option>
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label"><?php _e('Filter by Customer', 'siteiran-wholesale'); ?></label>
+                    <div class="col-md-2">
+                        <label class="form-label"><?php _e('Customer', 'siteiran-wholesale'); ?></label>
                         <select name="filter_customer" class="form-select">
                             <option value=""><?php _e('All Customers', 'siteiran-wholesale'); ?></option>
                             <?php foreach ($users as $user) : ?>
                                 <option value="<?php echo esc_attr($user->ID); ?>" <?php selected($filter_customer, $user->ID); ?>><?php echo esc_html($user->display_name); ?></option>
                             <?php endforeach; ?>
                         </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label"><?php _e('Date Start', 'siteiran-wholesale'); ?></label>
+                        <input type="date" name="filter_date_start" class="form-control" value="<?php echo esc_attr($filter_date_start); ?>">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label"><?php _e('Date End', 'siteiran-wholesale'); ?></label>
+                        <input type="date" name="filter_date_end" class="form-control" value="<?php echo esc_attr($filter_date_end); ?>">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label"><?php _e('Search', 'siteiran-wholesale'); ?></label>
+                        <input type="text" name="filter_search" class="form-control" value="<?php echo esc_attr($filter_search); ?>" placeholder="<?php _e('Order or Product', 'siteiran-wholesale'); ?>">
                     </div>
                     <div class="col-md-2">
                         <button type="submit" class="btn btn-primary w-100"><?php _e('Apply Filter', 'siteiran-wholesale'); ?></button>
@@ -78,6 +131,7 @@ class SIWO_Orders {
                         <tr>
                             <th><?php _e('Order ID', 'siteiran-wholesale'); ?></th>
                             <th><?php _e('Customer', 'siteiran-wholesale'); ?></th>
+                            <th><?php _e('Date', 'siteiran-wholesale'); ?></th>
                             <th><?php _e('Status', 'siteiran-wholesale'); ?></th>
                             <th><?php _e('Actions', 'siteiran-wholesale'); ?></th>
                         </tr>
@@ -88,6 +142,7 @@ class SIWO_Orders {
                                 <tr>
                                     <td><?php echo esc_html($order->ID); ?></td>
                                     <td><?php echo esc_html(get_userdata(get_post_meta($order->ID, 'siwo_customer', true))->display_name); ?></td>
+                                    <td><?php echo esc_html(get_the_date('', $order->ID)); ?></td>
                                     <td><?php echo esc_html(get_post_meta($order->ID, 'siwo_status', true)); ?></td>
                                     <td>
                                         <a href="?page=siwo-add-order&edit_order=<?php echo $order->ID; ?>" class="btn btn-sm btn-primary"><?php _e('Edit', 'siteiran-wholesale'); ?></a>
@@ -98,7 +153,7 @@ class SIWO_Orders {
                             <?php endforeach; ?>
                         <?php else : ?>
                             <tr>
-                                <td colspan="4" class="text-center"><?php _e('No orders found.', 'siteiran-wholesale'); ?></td>
+                                <td colspan="5" class="text-center"><?php _e('No orders found.', 'siteiran-wholesale'); ?></td>
                             </tr>
                         <?php endif; ?>
                     </tbody>

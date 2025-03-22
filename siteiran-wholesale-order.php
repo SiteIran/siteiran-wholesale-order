@@ -37,8 +37,8 @@ function siwo_register_post_type() {
         ],
         'public' => false,
         'show_ui' => false,
-        'rewrite' => false, // غیرفعال کردن بازنویسی URL برای جلوگیری از خطا
-        'supports' => ['title'], // فقط عنوان رو نگه می‌داریم
+        'rewrite' => false,
+        'supports' => ['title', 'custom-fields'], // 'custom-fields' برای متادیتا
     ]);
 }
 add_action('init', 'siwo_register_post_type'); // ثبت پست تایپ در 'init'
