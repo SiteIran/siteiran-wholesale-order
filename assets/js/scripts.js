@@ -1,36 +1,7 @@
 jQuery(document).ready(function($) {
-    // Initialize Select2 for product search
-    $('.siwo-product-search').select2({
-        ajax: {
-            url: siwo_ajax.ajax_url,
-            dataType: 'json',
-            delay: 250,
-            data: function(params) {
-                return {
-                    term: params.term,
-                    action: 'siwo_search_products'
-                };
-            },
-            processResults: function(data) {
-                return {
-                    results: data
-                };
-            },
-            cache: true
-        },
-        placeholder: 'Search product...',
-        minimumInputLength: 2,
-    });
-
-    // Add new row
-    $('#siwo-add-row').on('click', function() {
-        var row = '<tr>' +
-            '<td><select class="siwo-product-search" name="products[]"><option value="">Search product...</option></select></td>' +
-            '<td><input type="number" name="quantity[]" min="1" value="1" /></td>' +
-            '<td><button type="button" class="button siwo-remove-row">Remove</button></td>' +
-            '</tr>';
-        $('#siwo-order-items').append(row);
-        $('#siwo-order-items tr:last .siwo-product-search').select2({
+    // Initialize Select2
+    function initSelect2($element) {
+        $element.select2({
             ajax: {
                 url: siwo_ajax.ajax_url,
                 dataType: 'json',
@@ -50,7 +21,38 @@ jQuery(document).ready(function($) {
             },
             placeholder: 'Search product...',
             minimumInputLength: 2,
+        }).on('select2:select', function(e) {
+            var productId = e.params.data.id;
+            $.ajax({
+                url: siwo_ajax.ajax_url,
+                method: 'POST',
+                data: {
+                    action: 'siwo_get_product_price',
+                    product_id: productId
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $(e.target).closest('tr').find('td:eq(2)').html(response.data.price);
+                    }
+                }
+            });
         });
+    }
+
+    $('.siwo-product-search').each(function() {
+        initSelect2($(this));
+    });
+
+    // Add new row
+    $('#siwo-add-row').on('click', function() {
+        var row = '<tr>' +
+            '<td><select class="siwo-product-search form-select" name="products[]"><option value="">Search product...</option></select></td>' +
+            '<td><input type="number" class="form-control" name="quantity[]" min="1" value="1" /></td>' +
+            '<td>-</td>' +
+            '<td><button type="button" class="btn btn-danger siwo-remove-row">Remove</button></td>' +
+            '</tr>';
+        $('#siwo-order-items').append(row);
+        initSelect2($('#siwo-order-items tr:last .siwo-product-search'));
     });
 
     // Remove row
@@ -58,7 +60,7 @@ jQuery(document).ready(function($) {
         $(this).closest('tr').remove();
     });
 
-// Print order
+    // Print order
     $('.siwo-print-order').on('click', function(e) {
         e.preventDefault();
         var orderId = $(this).data('order-id');

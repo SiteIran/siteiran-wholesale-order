@@ -43,12 +43,17 @@ function siwo_register_post_type() {
 }
 add_action('init', 'siwo_register_post_type'); // ثبت پست تایپ در 'init'
 
-// Enqueue styles and scripts
 function siwo_enqueue_assets() {
-    wp_enqueue_style('siwo-styles', SIWO_URL . 'assets/css/style.css', [], '1.0.0');
+    // Bootstrap CSS
+    wp_enqueue_style('bootstrap', 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css', [], '5.3.3');
+    wp_enqueue_style('siwo-styles', SIWO_URL . 'assets/css/style.css', ['bootstrap'], '1.0.1');
+    // Select2 CSS
     wp_enqueue_style('select2', 'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css');
+    // Bootstrap JS (needs Popper.js)
+    wp_enqueue_script('popper', 'https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js', [], '2.11.8', true);
+    wp_enqueue_script('bootstrap', 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js', ['popper'], '5.3.3', true);
     wp_enqueue_script('select2', 'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js', ['jquery'], '4.0.13', true);
-    wp_enqueue_script('siwo-scripts', SIWO_URL . 'assets/js/scripts.js', ['jquery', 'select2'], '1.0.0', true);
+    wp_enqueue_script('siwo-scripts', SIWO_URL . 'assets/js/scripts.js', ['jquery', 'select2'], '1.0.1', true);
     wp_localize_script('siwo-scripts', 'siwo_ajax', ['ajax_url' => admin_url('admin-ajax.php')]);
 }
 add_action('admin_enqueue_scripts', 'siwo_enqueue_assets');

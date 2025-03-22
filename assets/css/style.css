@@ -15,32 +15,25 @@
 
 .siwo-order-table {
     width: 100%;
-    border-collapse: collapse;
     margin-bottom: 20px;
 }
 
 .siwo-order-table th,
 .siwo-order-table td {
     padding: 10px;
-    border: 1px solid #ddd;
 }
 
 .siwo-product-search {
     width: 100%;
-    padding: 5px;
-}
-
-.siwo-order-form button {
-    margin-right: 10px;
 }
 
 @media (max-width: 768px) {
     .siwo-dashboard {
         flex-direction: column;
     }
-    .siwo-order-table th,
-    .siwo-order-table td {
-        display: block;
-        width: 100%;
-    }
+}
+
+/* Bootstrap Overrides */
+.btn {
+    margin-right: 5px;
 }

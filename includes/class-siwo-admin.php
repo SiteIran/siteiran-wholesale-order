@@ -8,6 +8,7 @@ class SIWO_Admin {
         add_action('admin_menu', [$this, 'register_menu']);
         add_action('wp_ajax_siwo_search_products', [$this, 'search_products']);
         add_action('wp_ajax_siwo_get_order_data', [$this, 'get_order_data_for_print']);
+        add_action('wp_ajax_siwo_get_product_price', [$this, 'get_product_price']);
     }
 
     public function register_menu() {
@@ -44,71 +45,76 @@ class SIWO_Admin {
         $order_id = $is_edit ? intval($_GET['edit_order']) : 0;
         $order_data = $is_edit ? get_post_meta($order_id, 'siwo_products', true) : [];
         $order_status = $is_edit ? get_post_meta($order_id, 'siwo_status', true) : '';
-
+    
         if (isset($_POST['siwo_save_order'])) {
             $this->save_order($_POST, $order_id);
         }
-
+    
         $title = $is_edit ? __('Edit Wholesale Order', 'siteiran-wholesale') : __('Add New Wholesale Order', 'siteiran-wholesale');
         ?>
         <div class="wrap siwo-wrap">
-            <h1><?php echo esc_html($title); ?></h1>
+            <h1 class="mb-4"><?php echo esc_html($title); ?></h1>
             <form method="post" class="siwo-order-form">
-                <table class="siwo-order-table">
-                    <thead>
-                        <tr>
-                            <th><?php _e('Product', 'siteiran-wholesale'); ?></th>
-                            <th><?php _e('Quantity', 'siteiran-wholesale'); ?></th>
-                            <th><?php _e('Action', 'siteiran-wholesale'); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody id="siwo-order-items">
-                        <?php
-                        if ($is_edit && !empty($order_data)) {
-                            foreach ($order_data as $product_id => $quantity) {
-                                $product = wc_get_product($product_id);
-                                if ($product) {
-                                    ?>
-                                    <tr>
-                                        <td>
-                                            <select class="siwo-product-search" name="products[]">
-                                                <option value="<?php echo esc_attr($product_id); ?>" selected><?php echo esc_html($product->get_name()); ?></option>
-                                            </select>
-                                        </td>
-                                        <td><input type="number" name="quantity[]" min="1" value="<?php echo esc_attr($quantity); ?>" /></td>
-                                        <td><button type="button" class="button siwo-remove-row"><?php _e('Remove', 'siteiran-wholesale'); ?></button></td>
-                                    </tr>
-                                    <?php
-                                }
-                            }
-                        } else {
-                            ?>
+                <div class="table-responsive">
+                    <table class="table table-bordered siwo-order-table">
+                        <thead class="table-light">
                             <tr>
-                                <td>
-                                    <select class="siwo-product-search" name="products[]">
-                                        <option value=""><?php _e('Search product...', 'siteiran-wholesale'); ?></option>
-                                    </select>
-                                </td>
-                                <td><input type="number" name="quantity[]" min="1" value="1" /></td>
-                                <td><button type="button" class="button siwo-remove-row"><?php _e('Remove', 'siteiran-wholesale'); ?></button></td>
+                                <th><?php _e('Product', 'siteiran-wholesale'); ?></th>
+                                <th><?php _e('Quantity', 'siteiran-wholesale'); ?></th>
+                                <th><?php _e('Price', 'siteiran-wholesale'); ?></th>
+                                <th><?php _e('Action', 'siteiran-wholesale'); ?></th>
                             </tr>
+                        </thead>
+                        <tbody id="siwo-order-items">
                             <?php
-                        }
-                        ?>
-                    </tbody>
-                </table>
+                            if ($is_edit && !empty($order_data)) {
+                                foreach ($order_data as $product_id => $quantity) {
+                                    $product = wc_get_product($product_id);
+                                    if ($product) {
+                                        ?>
+                                        <tr>
+                                            <td>
+                                                <select class="siwo-product-search form-select" name="products[]">
+                                                    <option value="<?php echo esc_attr($product_id); ?>" selected><?php echo esc_html($product->get_name()); ?></option>
+                                                </select>
+                                            </td>
+                                            <td><input type="number" class="form-control" name="quantity[]" min="1" value="<?php echo esc_attr($quantity); ?>" /></td>
+                                            <td><?php echo wc_price($product->get_price()); ?></td>
+                                            <td><button type="button" class="btn btn-danger siwo-remove-row"><?php _e('Remove', 'siteiran-wholesale'); ?></button></td>
+                                        </tr>
+                                        <?php
+                                    }
+                                }
+                            } else {
+                                ?>
+                                <tr>
+                                    <td>
+                                        <select class="siwo-product-search form-select" name="products[]">
+                                            <option value=""><?php _e('Search product...', 'siteiran-wholesale'); ?></option>
+                                        </select>
+                                    </td>
+                                    <td><input type="number" class="form-control" name="quantity[]" min="1" value="1" /></td>
+                                    <td>-</td>
+                                    <td><button type="button" class="btn btn-danger siwo-remove-row"><?php _e('Remove', 'siteiran-wholesale'); ?></button></td>
+                                </tr>
+                                <?php
+                            }
+                            ?>
+                        </tbody>
+                    </table>
+                </div>
                 <?php if ($is_edit) : ?>
-                    <p>
-                        <label><?php _e('Order Status:', 'siteiran-wholesale'); ?></label>
-                        <select name="order_status">
+                    <div class="mb-3">
+                        <label class="form-label"><?php _e('Order Status:', 'siteiran-wholesale'); ?></label>
+                        <select name="order_status" class="form-select w-25">
                             <option value="pending" <?php selected($order_status, 'pending'); ?>><?php _e('Pending', 'siteiran-wholesale'); ?></option>
                             <option value="processing" <?php selected($order_status, 'processing'); ?>><?php _e('Processing', 'siteiran-wholesale'); ?></option>
                             <option value="completed" <?php selected($order_status, 'completed'); ?>><?php _e('Completed', 'siteiran-wholesale'); ?></option>
                         </select>
-                    </p>
+                    </div>
                 <?php endif; ?>
-                <button type="button" id="siwo-add-row" class="button"><?php _e('Add Product', 'siteiran-wholesale'); ?></button>
-                <input type="submit" name="siwo_save_order" class="button button-primary" value="<?php _e('Save Order', 'siteiran-wholesale'); ?>" />
+                <button type="button" id="siwo-add-row" class="btn btn-secondary"><?php _e('Add Product', 'siteiran-wholesale'); ?></button>
+                <input type="submit" name="siwo_save_order" class="btn btn-primary" value="<?php _e('Save Order', 'siteiran-wholesale'); ?>" />
             </form>
         </div>
         <?php
@@ -192,4 +198,16 @@ class SIWO_Admin {
             'customer' => $customer,
         ]);
     }
+
+
+    public function get_product_price() {
+        $product_id = intval($_POST['product_id']);
+        $product = wc_get_product($product_id);
+        if ($product) {
+            wp_send_json_success(['price' => wc_price($product->get_price())]);
+        } else {
+            wp_send_json_error();
+        }
+    }
+    
 }
