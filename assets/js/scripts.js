@@ -32,7 +32,7 @@ jQuery(document).ready(function($) {
                 },
                 success: function(response) {
                     if (response.success) {
-                        $(e.target).closest('tr').find('td:eq(2)').html(response.data.price);
+                        $(e.target).closest('tr').find('td:eq(2)').text(response.data.price);
                     }
                 }
             });
@@ -74,18 +74,65 @@ jQuery(document).ready(function($) {
             success: function(response) {
                 if (response.success) {
                     var printWindow = window.open('', '_blank');
-                    printWindow.document.write('<html><head><title>Order #' + orderId + '</title>');
-                    printWindow.document.write('<style>table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }</style>');
+                    printWindow.document.write('<html><head><title>Invoice #' + response.data.invoice_number + '</title>');
+                    printWindow.document.write('<style>');
+                    printWindow.document.write('body { font-family: Arial, sans-serif; margin: 30px; color: #333; }');
+                    printWindow.document.write('.invoice-container { max-width: 800px; margin: auto; border: 1px solid #ddd; padding: 20px; border-radius: 5px; }');
+                    printWindow.document.write('.invoice-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #007bff; padding-bottom: 15px; margin-bottom: 20px; }');
+                    printWindow.document.write('.invoice-logo { max-width: 150px; }');
+                    printWindow.document.write('.invoice-details { text-align: right; }');
+                    printWindow.document.write('.invoice-details h1 { margin: 0; color: #007bff; }');
+                    printWindow.document.write('table { width: 100%; border-collapse: collapse; margin: 20px 0; }');
+                    printWindow.document.write('th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }');
+                    printWindow.document.write('th { background-color: #007bff; color: white; }');
+                    printWindow.document.write('.total { font-weight: bold; font-size: 1.2em; margin-top: 20px; text-align: right; }');
+                    printWindow.document.write('.notes { margin-top: 20px; padding: 10px; background: #f8f9fa; border-radius: 5px; }');
+                    printWindow.document.write('</style>');
                     printWindow.document.write('</head><body>');
-                    printWindow.document.write('<h1>Order #' + orderId + '</h1>');
+
+                    printWindow.document.write('<div class="invoice-container">');
+                    // Header
+                    printWindow.document.write('<div class="invoice-header">');
+                    if (response.data.logo_url) {
+                        printWindow.document.write('<img src="' + response.data.logo_url + '" class="invoice-logo" alt="Logo">');
+                    } else {
+                        printWindow.document.write('<h2>SiteIran</h2>');
+                    }
+                    printWindow.document.write('<div class="invoice-details">');
+                    printWindow.document.write('<h1>' + response.data.invoice_number + '</h1>');
+                    printWindow.document.write('<p><strong>Date:</strong> ' + response.data.date + '</p>');
                     printWindow.document.write('<p><strong>Customer:</strong> ' + response.data.customer + '</p>');
                     printWindow.document.write('<p><strong>Status:</strong> ' + response.data.status + '</p>');
-                    printWindow.document.write('<table><thead><tr><th>Product</th><th>Quantity</th></tr></thead><tbody>');
-                    $.each(response.data.products, function(productId, quantity) {
-                        printWindow.document.write('<tr><td>' + productId + '</td><td>' + quantity + '</td></tr>');
+                    printWindow.document.write('</div></div>');
+
+                    // Products table
+                    printWindow.document.write('<table><thead><tr><th>Product</th><th>Quantity</th><th>Price</th><th>Total</th></tr></thead><tbody>');
+                    var grandTotal = 0;
+                    $.each(response.data.products, function(productName, details) {
+                        var total = details.quantity * details.price;
+                        grandTotal += total;
+                        printWindow.document.write('<tr><td>' + productName + '</td><td>' + details.quantity + '</td><td>' + details.price_formatted + '</td><td>' + details.total_formatted + '</td></tr>');
                     });
                     printWindow.document.write('</tbody></table>');
-                    printWindow.document.write('</body></html>');
+
+                    // Notes
+                    var notes = response.data.notes || '';
+                    if (notes.trim() !== '') {
+                        printWindow.document.write('<div class="notes"><strong>Notes:</strong> ' + notes + '</div>');
+                    }
+
+                    // Total
+                    var discount = response.data.discount || 0;
+                    var finalTotal = grandTotal * (1 - discount / 100);
+                    printWindow.document.write('<div class="total">');
+                    printWindow.document.write('<p>Subtotal: ' + grandTotal.toFixed(2) + ' ' + response.data.currency + '</p>');
+                    if (discount > 0) {
+                        printWindow.document.write('<p>Discount (' + discount + '%): -' + (grandTotal * discount / 100).toFixed(2) + ' ' + response.data.currency + '</p>');
+                    }
+                    printWindow.document.write('<p>Total: ' + finalTotal.toFixed(2) + ' ' + response.data.currency + '</p>');
+                    printWindow.document.write('</div>');
+
+                    printWindow.document.write('</div></body></html>');
                     printWindow.document.close();
                     printWindow.print();
                 }

@@ -45,6 +45,7 @@ class SIWO_Admin {
         $order_id = $is_edit ? intval($_GET['edit_order']) : 0;
         $order_data = $is_edit ? get_post_meta($order_id, 'siwo_products', true) : [];
         $order_status = $is_edit ? get_post_meta($order_id, 'siwo_status', true) : '';
+        $order_notes = $is_edit ? get_post_meta($order_id, 'siwo_notes', true) : '';
     
         if (isset($_POST['siwo_save_order'])) {
             $this->save_order($_POST, $order_id);
@@ -113,6 +114,10 @@ class SIWO_Admin {
                         </select>
                     </div>
                 <?php endif; ?>
+                <div class="mb-3">
+                    <label class="form-label"><?php _e('Order Notes:', 'siteiran-wholesale'); ?></label>
+                    <textarea name="order_notes" class="form-control" rows="3"><?php echo esc_textarea($order_notes); ?></textarea>
+                </div>
                 <button type="button" id="siwo-add-row" class="btn btn-secondary"><?php _e('Add Product', 'siteiran-wholesale'); ?></button>
                 <input type="submit" name="siwo_save_order" class="btn btn-primary" value="<?php _e('Save Order', 'siteiran-wholesale'); ?>" />
             </form>
@@ -150,17 +155,16 @@ class SIWO_Admin {
                     'siwo_products' => array_combine($products, $quantities),
                     'siwo_status' => isset($data['order_status']) ? sanitize_text_field($data['order_status']) : get_option('siwo_order_status', 'pending'),
                     'siwo_customer' => get_current_user_id(),
+                    'siwo_notes' => isset($data['order_notes']) ? sanitize_textarea_field($data['order_notes']) : '',
                 ],
             ];
             if ($order_id) {
                 $order_data['ID'] = $order_id;
                 wp_update_post($order_data);
-                // Redirect to edit page after update
                 wp_redirect(admin_url('admin.php?page=siwo-add-order&edit_order=' . $order_id));
                 exit;
             } else {
                 $new_order_id = wp_insert_post($order_data);
-                // Redirect to edit page after creating new order
                 wp_redirect(admin_url('admin.php?page=siwo-add-order&edit_order=' . $new_order_id));
                 exit;
             }
@@ -185,17 +189,37 @@ class SIWO_Admin {
         $status = get_post_meta($order_id, 'siwo_status', true);
         $customer_id = get_post_meta($order_id, 'siwo_customer', true);
         $customer = get_userdata($customer_id)->display_name;
-
-        $product_names = [];
+        $date = get_the_date('Y-m-d', $order_id);
+        $logo_id = get_option('siwo_logo_id', 0);
+        $logo_url = $logo_id ? wp_get_attachment_url($logo_id) : '';
+        $discount_percent = get_option('siwo_discount_percent', 0);
+        $notes = get_post_meta($order_id, 'siwo_notes', true);
+        $invoice_number = 'INV-' . str_pad($order_id, 6, '0', STR_PAD_LEFT);
+    
+        $product_details = [];
         foreach ($products as $product_id => $quantity) {
             $product = wc_get_product($product_id);
-            $product_names[$product->get_name()] = $quantity;
+            if ($product) {
+                $price = $product->get_price();
+                $product_details[$product->get_name()] = [
+                    'quantity' => $quantity,
+                    'price' => $price,
+                    'price_formatted' => wc_price($price),
+                    'total_formatted' => wc_price($price * $quantity),
+                ];
+            }
         }
-
+    
         wp_send_json_success([
-            'products' => $product_names,
+            'products' => $product_details,
             'status' => $status,
             'customer' => $customer,
+            'date' => $date,
+            'logo_url' => $logo_url,
+            'discount' => $discount_percent,
+            'currency' => get_woocommerce_currency(),
+            'notes' => $notes,
+            'invoice_number' => $invoice_number,
         ]);
     }
 
