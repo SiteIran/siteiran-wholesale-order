@@ -149,11 +149,17 @@ class SIWO_Admin {
             if ($order_id) {
                 $order_data['ID'] = $order_id;
                 wp_update_post($order_data);
-                echo '<div class="updated"><p>' . __('Order updated successfully!', 'siteiran-wholesale') . '</p></div>';
+                // Redirect to edit page after update
+                wp_redirect(admin_url('admin.php?page=siwo-add-order&edit_order=' . $order_id));
+                exit;
             } else {
-                wp_insert_post($order_data);
-                echo '<div class="updated"><p>' . __('Order saved successfully!', 'siteiran-wholesale') . '</p></div>';
+                $new_order_id = wp_insert_post($order_data);
+                // Redirect to edit page after creating new order
+                wp_redirect(admin_url('admin.php?page=siwo-add-order&edit_order=' . $new_order_id));
+                exit;
             }
+        } else {
+            echo '<div class="error"><p>' . __('No products selected!', 'siteiran-wholesale') . '</p></div>';
         }
     }
 
