@@ -9,6 +9,7 @@ class SIWO_Admin {
         add_action('wp_ajax_siwo_search_products', [$this, 'search_products']);
         add_action('wp_ajax_siwo_get_order_data', [$this, 'get_order_data_for_print']);
         add_action('wp_ajax_siwo_get_product_price', [$this, 'get_product_price']);
+        add_action('admin_init', [$this, 'handle_order_conversion']); // برای تبدیل سفارش
     }
 
     public function register_menu() {
@@ -21,10 +22,11 @@ class SIWO_Admin {
             'dashicons-cart',
             30
         );
-
+    
         add_submenu_page('siwo-dashboard', __('Add Order', 'siteiran-wholesale'), __('Add Order', 'siteiran-wholesale'), 'manage_options', 'siwo-add-order', [$this, 'add_order_page']);
         add_submenu_page('siwo-dashboard', __('Settings', 'siteiran-wholesale'), __('Settings', 'siteiran-wholesale'), 'manage_options', 'siwo-settings', [$this, 'settings_page']);
         add_submenu_page('siwo-dashboard', __('Order List', 'siteiran-wholesale'), __('Order List', 'siteiran-wholesale'), 'manage_options', 'siwo-orders', [$this, 'orders_page']);
+        add_submenu_page('siwo-dashboard', __('Reports', 'siteiran-wholesale'), __('Reports', 'siteiran-wholesale'), 'manage_options', 'siwo-reports', [$this, 'reports_page']);
     }
 
     public function dashboard_page() {
@@ -46,8 +48,9 @@ class SIWO_Admin {
         $order_data = $is_edit ? get_post_meta($order_id, 'siwo_products', true) : [];
         $order_status = $is_edit ? get_post_meta($order_id, 'siwo_status', true) : '';
         $order_notes = $is_edit ? get_post_meta($order_id, 'siwo_notes', true) : '';
+        $is_converted = $is_edit && get_post_meta($order_id, 'siwo_converted_to_wc', true);
     
-        if (isset($_POST['siwo_save_order'])) {
+        if (isset($_POST['siwo_save_order']) && !$is_converted) { // فقط اگه تبدیل نشده باشه ذخیره کنه
             $this->save_order($_POST, $order_id);
         }
     
@@ -55,7 +58,10 @@ class SIWO_Admin {
         ?>
         <div class="wrap siwo-wrap">
             <h1 class="mb-4"><?php echo esc_html($title); ?></h1>
-            <form method="post" class="siwo-order-form">
+            <?php if ($is_converted) : ?>
+                <div class="alert alert-info"><?php _e('This order has been converted to WooCommerce and cannot be edited.', 'siteiran-wholesale'); ?></div>
+            <?php endif; ?>
+            <form method="post" class="siwo-order-form" <?php echo $is_converted ? 'disabled' : ''; ?>>
                 <div class="table-responsive">
                     <table class="table table-bordered siwo-order-table">
                         <thead class="table-light">
@@ -75,13 +81,27 @@ class SIWO_Admin {
                                         ?>
                                         <tr>
                                             <td>
-                                                <select class="siwo-product-search form-select" name="products[]">
-                                                    <option value="<?php echo esc_attr($product_id); ?>" selected><?php echo esc_html($product->get_name()); ?></option>
-                                                </select>
+                                                <?php if ($is_converted) : ?>
+                                                    <?php echo esc_html($product->get_name()); ?>
+                                                <?php else : ?>
+                                                    <select class="siwo-product-search form-select" name="products[]">
+                                                        <option value="<?php echo esc_attr($product_id); ?>" selected><?php echo esc_html($product->get_name()); ?></option>
+                                                    </select>
+                                                <?php endif; ?>
                                             </td>
-                                            <td><input type="number" class="form-control" name="quantity[]" min="1" value="<?php echo esc_attr($quantity); ?>" /></td>
+                                            <td>
+                                                <?php if ($is_converted) : ?>
+                                                    <?php echo esc_html($quantity); ?>
+                                                <?php else : ?>
+                                                    <input type="number" class="form-control" name="quantity[]" min="1" value="<?php echo esc_attr($quantity); ?>" />
+                                                <?php endif; ?>
+                                            </td>
                                             <td><?php echo wc_price($product->get_price()); ?></td>
-                                            <td><button type="button" class="btn btn-danger siwo-remove-row"><?php _e('Remove', 'siteiran-wholesale'); ?></button></td>
+                                            <td>
+                                                <?php if (!$is_converted) : ?>
+                                                    <button type="button" class="btn btn-danger siwo-remove-row"><?php _e('Remove', 'siteiran-wholesale'); ?></button>
+                                                <?php endif; ?>
+                                            </td>
                                         </tr>
                                         <?php
                                     }
@@ -107,19 +127,29 @@ class SIWO_Admin {
                 <?php if ($is_edit) : ?>
                     <div class="mb-3">
                         <label class="form-label"><?php _e('Order Status:', 'siteiran-wholesale'); ?></label>
-                        <select name="order_status" class="form-select w-25">
-                            <option value="pending" <?php selected($order_status, 'pending'); ?>><?php _e('Pending', 'siteiran-wholesale'); ?></option>
-                            <option value="processing" <?php selected($order_status, 'processing'); ?>><?php _e('Processing', 'siteiran-wholesale'); ?></option>
-                            <option value="completed" <?php selected($order_status, 'completed'); ?>><?php _e('Completed', 'siteiran-wholesale'); ?></option>
-                        </select>
+                        <?php if ($is_converted) : ?>
+                            <?php echo esc_html($order_status); ?>
+                        <?php else : ?>
+                            <select name="order_status" class="form-select w-25">
+                                <option value="pending" <?php selected($order_status, 'pending'); ?>><?php _e('Pending', 'siteiran-wholesale'); ?></option>
+                                <option value="processing" <?php selected($order_status, 'processing'); ?>><?php _e('Processing', 'siteiran-wholesale'); ?></option>
+                                <option value="completed" <?php selected($order_status, 'completed'); ?>><?php _e('Completed', 'siteiran-wholesale'); ?></option>
+                            </select>
+                        <?php endif; ?>
                     </div>
                 <?php endif; ?>
                 <div class="mb-3">
                     <label class="form-label"><?php _e('Order Notes:', 'siteiran-wholesale'); ?></label>
-                    <textarea name="order_notes" class="form-control" rows="3"><?php echo esc_textarea($order_notes); ?></textarea>
+                    <?php if ($is_converted) : ?>
+                        <?php echo esc_html($order_notes); ?>
+                    <?php else : ?>
+                        <textarea name="order_notes" class="form-control" rows="3"><?php echo esc_textarea($order_notes); ?></textarea>
+                    <?php endif; ?>
                 </div>
-                <button type="button" id="siwo-add-row" class="btn btn-secondary"><?php _e('Add Product', 'siteiran-wholesale'); ?></button>
-                <input type="submit" name="siwo_save_order" class="btn btn-primary" value="<?php _e('Save Order', 'siteiran-wholesale'); ?>" />
+                <?php if (!$is_converted) : ?>
+                    <button type="button" id="siwo-add-row" class="btn btn-secondary"><?php _e('Add Product', 'siteiran-wholesale'); ?></button>
+                    <input type="submit" name="siwo_save_order" class="btn btn-primary" value="<?php _e('Save Order', 'siteiran-wholesale'); ?>" />
+                <?php endif; ?>
             </form>
         </div>
         <?php
@@ -232,6 +262,122 @@ class SIWO_Admin {
         } else {
             wp_send_json_error();
         }
+    }
+
+
+
+
+// تابع جدید برای تبدیل سفارش
+
+    public function handle_order_conversion() {
+        if (isset($_GET['page']) && $_GET['page'] === 'siwo-orders' && isset($_GET['action']) && $_GET['action'] === 'convert' && isset($_GET['order_id'])) {
+            $order_id = intval($_GET['order_id']);
+            $products = get_post_meta($order_id, 'siwo_products', true);
+            $customer_id = get_post_meta($order_id, 'siwo_customer', true);
+            $discount_percent = get_option('siwo_discount_percent', 0);
+    
+            if ($products && $customer_id) {
+                // Create new WooCommerce order
+                $order = wc_create_order([
+                    'customer_id' => $customer_id,
+                ]);
+    
+                // Add products to order
+                foreach ($products as $product_id => $quantity) {
+                    $product = wc_get_product($product_id);
+                    if ($product) {
+                        $order->add_product($product, $quantity);
+                    }
+                }
+    
+                // Apply discount if set
+                if ($discount_percent > 0) {
+                    $subtotal = $order->get_subtotal();
+                    $discount_amount = $subtotal * ($discount_percent / 100);
+                    $order->set_discount_total($discount_amount);
+                    $order->set_total($subtotal - $discount_amount);
+                }
+    
+                // Set status based on SIWO status
+                $siwo_status = get_post_meta($order_id, 'siwo_status', true);
+                $wc_status = $siwo_status === 'completed' ? 'completed' : ($siwo_status === 'processing' ? 'processing' : 'pending');
+                $order->set_status($wc_status);
+                $order->save();
+    
+                // Mark SIWO order as converted
+                update_post_meta($order_id, 'siwo_converted_to_wc', $order->get_id());
+    
+                // Redirect with success message
+                wp_redirect(admin_url('admin.php?page=siwo-orders&converted=1'));
+                exit;
+            }
+        }
+    }
+
+
+//ایجاد تابع گزارشات 
+    public function reports_page() {
+        $args = [
+            'post_type' => 'siwo_order',
+            'posts_per_page' => -1,
+            'meta_query' => [['key' => 'siwo_converted_to_wc', 'compare' => 'NOT EXISTS']], // فقط سفارشات تبدیل‌نشده
+        ];
+        $orders = get_posts($args);
+        $total_orders = count($orders);
+        $total_sales = 0;
+        $products_sold = [];
+    
+        foreach ($orders as $order) {
+            $products = get_post_meta($order->ID, 'siwo_products', true);
+            foreach ($products as $product_id => $quantity) {
+                $product = wc_get_product($product_id);
+                if ($product) {
+                    $total_sales += $product->get_price() * $quantity;
+                    $products_sold[$product->get_name()] = ($products_sold[$product->get_name()] ?? 0) + $quantity;
+                }
+            }
+        }
+        $discount_percent = get_option('siwo_discount_percent', 0);
+        $discounted_sales = $total_sales * (1 - $discount_percent / 100);
+    
+        ?>
+        <div class="wrap siwo-wrap">
+            <h1 class="mb-4"><?php _e('Wholesale Reports', 'siteiran-wholesale'); ?></h1>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title"><?php _e('Total Orders', 'siteiran-wholesale'); ?></h5>
+                            <p class="card-text"><?php echo esc_html($total_orders); ?></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title"><?php _e('Total Sales', 'siteiran-wholesale'); ?></h5>
+                            <p class="card-text"><?php echo wc_price($total_sales); ?></p>
+                            <?php if ($discount_percent > 0) : ?>
+                                <p class="card-text text-muted"><?php echo wc_price($discounted_sales); ?> (<?php echo esc_html($discount_percent); ?>% off)</p>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title"><?php _e('Products Sold', 'siteiran-wholesale'); ?></h5>
+                            <ul class="list-unstyled">
+                                <?php foreach ($products_sold as $name => $qty) : ?>
+                                    <li><?php echo esc_html($name) . ': ' . esc_html($qty); ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php
     }
     
 }

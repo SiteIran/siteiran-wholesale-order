@@ -5,6 +5,11 @@ if (!defined('ABSPATH')) {
 
 class SIWO_Orders {
     public function render() {
+        // نمایش پیام موفقیت - تبدیل به ووکامرس
+        if (isset($_GET['converted']) && $_GET['converted'] == 1) {
+            echo '<div class="updated"><p>' . __('Order successfully converted to WooCommerce.', 'siteiran-wholesale') . '</p></div>';
+        }
+        
         if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['order_id'])) {
             wp_delete_post(intval($_GET['order_id']));
             echo '<div class="updated"><p>' . __('Order deleted.', 'siteiran-wholesale') . '</p></div>';
@@ -145,9 +150,16 @@ class SIWO_Orders {
                                     <td><?php echo esc_html(get_the_date('', $order->ID)); ?></td>
                                     <td><?php echo esc_html(get_post_meta($order->ID, 'siwo_status', true)); ?></td>
                                     <td>
-                                        <a href="?page=siwo-add-order&edit_order=<?php echo $order->ID; ?>" class="btn btn-sm btn-primary"><?php _e('Edit', 'siteiran-wholesale'); ?></a>
-                                        <a href="?page=siwo-orders&action=delete&order_id=<?php echo $order->ID; ?>" class="btn btn-sm btn-danger" onclick="return confirm('<?php _e('Are you sure?', 'siteiran-wholesale'); ?>');"><?php _e('Delete', 'siteiran-wholesale'); ?></a>
+                                        <?php if (!get_post_meta($order->ID, 'siwo_converted_to_wc', true)) : ?>
+                                            <a href="?page=siwo-add-order&edit_order=<?php echo $order->ID; ?>" class="btn btn-sm btn-primary"><?php _e('Edit', 'siteiran-wholesale'); ?></a>
+                                            <a href="?page=siwo-orders&action=delete&order_id=<?php echo $order->ID; ?>" class="btn btn-sm btn-danger" onclick="return confirm('<?php _e('Are you sure?', 'siteiran-wholesale'); ?>');"><?php _e('Delete', 'siteiran-wholesale'); ?></a>
+                                        <?php endif; ?>
                                         <a href="#" class="btn btn-sm btn-secondary siwo-print-order" data-order-id="<?php echo $order->ID; ?>"><?php _e('Print', 'siteiran-wholesale'); ?></a>
+                                        <?php if (!get_post_meta($order->ID, 'siwo_converted_to_wc', true)) : ?>
+                                            <a href="?page=siwo-orders&action=convert&order_id=<?php echo $order->ID; ?>" class="btn btn-sm btn-success siwo-convert-order"><?php _e('Convert to WC Order', 'siteiran-wholesale'); ?></a>
+                                        <?php else : ?>
+                                            <a href="<?php echo admin_url('post.php?post=' . get_post_meta($order->ID, 'siwo_converted_to_wc', true) . '&action=edit'); ?>" class="btn btn-sm btn-info"><?php _e('View WC Order', 'siteiran-wholesale'); ?></a>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

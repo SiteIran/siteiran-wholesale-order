@@ -37,3 +37,32 @@
         flex-direction: column;
     }
 }
+.card {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background: #fff;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.card-title {
+    font-size: 1.25em;
+    margin-bottom: 10px;
+}
+
+.card-text {
+    font-size: 1.5em;
+    margin: 0;
+}
+
+.text-muted {
+    font-size: 1em;
+}
+.alert-info {
+    background-color: #cce5ff;
+    border-color: #b8daff;
+    color: #004085;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
