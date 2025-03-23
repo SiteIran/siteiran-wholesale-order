@@ -9,8 +9,8 @@ class SIWO_Admin {
         add_action('wp_ajax_siwo_search_products', [$this, 'search_products']);
         add_action('wp_ajax_siwo_get_order_data', [$this, 'get_order_data_for_print']);
         add_action('wp_ajax_siwo_get_product_price', [$this, 'get_product_price']);
-        add_action('admin_init', [$this, 'handle_order_conversion']); // برای تبدیل سفارش
-        add_action('admin_enqueue_scripts', [$this, 'enqueue_report_scripts']); // برای نمودار
+        add_action('admin_init', [$this, 'handle_order_conversion']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueue_report_scripts']);
     }
 
     public function register_menu() {
@@ -189,13 +189,25 @@ class SIWO_Admin {
                     'siwo_notes' => isset($data['order_notes']) ? sanitize_textarea_field($data['order_notes']) : '',
                 ],
             ];
+    
+            $is_converted = $order_id && get_post_meta($order_id, 'siwo_converted_to_wc', true);
+            if ($is_converted) {
+                echo '<div class="error"><p>' . __('This order has been converted to WooCommerce and cannot be edited.', 'siteiran-wholesale') . '</p></div>';
+                return;
+            }
+    
             if ($order_id) {
+                $old_status = get_post_meta($order_id, 'siwo_status', true);
                 $order_data['ID'] = $order_id;
                 wp_update_post($order_data);
+                if ($old_status !== $data['order_status']) {
+                    $this->send_order_notification($order_id, 'status_updated');
+                }
                 wp_redirect(admin_url('admin.php?page=siwo-add-order&edit_order=' . $order_id));
                 exit;
             } else {
                 $new_order_id = wp_insert_post($order_data);
+                $this->send_order_notification($new_order_id, 'created');
                 wp_redirect(admin_url('admin.php?page=siwo-add-order&edit_order=' . $new_order_id));
                 exit;
             }
@@ -533,9 +545,53 @@ public function reports_page() {
         </script>
     </div>
     <?php
-}
+    }
 
 
+    //اضافه کردن اعلانات
+    private function send_order_notification($order_id, $event = 'created') {
+        $products = get_post_meta($order_id, 'siwo_products', true);
+        $status = get_post_meta($order_id, 'siwo_status', true);
+        $customer_id = get_post_meta($order_id, 'siwo_customer', true);
+        $notes = get_post_meta($order_id, 'siwo_notes', true);
+        $customer = get_userdata($customer_id);
+        $notify_customer = get_option('siwo_notify_customer', 1);
+        $notify_admin = get_option('siwo_notify_admin', 1);
     
+        if (!$products || !$customer) return;
+    
+        // Prepare email content
+        $subject = $event === 'created' ? sprintf(__('New Wholesale Order #%s', 'siteiran-wholesale'), $order_id) : sprintf(__('Order #%s Status Updated', 'siteiran-wholesale'), $order_id);
+        $message = '<h2>' . $subject . '</h2>';
+        $message .= '<p><strong>' . __('Order ID:', 'siteiran-wholesale') . '</strong> ' . $order_id . '</p>';
+        $message .= '<p><strong>' . __('Status:', 'siteiran-wholesale') . '</strong> ' . ucfirst($status) . '</p>';
+        $message .= '<p><strong>' . __('Customer:', 'siteiran-wholesale') . '</strong> ' . esc_html($customer->display_name) . '</p>';
+        $message .= '<h3>' . __('Products:', 'siteiran-wholesale') . '</h3>';
+        $message .= '<ul>';
+        foreach ($products as $product_id => $quantity) {
+            $product = wc_get_product($product_id);
+            if ($product) {
+                $message .= '<li>' . esc_html($product->get_name()) . ' - ' . __('Qty:', 'siteiran-wholesale') . ' ' . $quantity . ' - ' . wc_price($product->get_price() * $quantity) . '</li>';
+            }
+        }
+        $message .= '</ul>';
+        if ($notes) {
+            $message .= '<p><strong>' . __('Notes:', 'siteiran-wholesale') . '</strong> ' . esc_html($notes) . '</p>';
+        }
+    
+        $headers = ['Content-Type: text/html; charset=UTF-8'];
+    
+        // Send to customer
+        if ($notify_customer && $customer->user_email) {
+            wp_mail($customer->user_email, $subject, $message, $headers);
+        }
+    
+        // Send to admin
+        if ($notify_admin) {
+            $admin_email = get_option('admin_email');
+            wp_mail($admin_email, $subject, $message, $headers);
+        }
+    }
+
     
 }

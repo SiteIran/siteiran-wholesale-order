@@ -9,6 +9,8 @@ class SIWO_Settings {
             update_option('siwo_order_status', sanitize_text_field($_POST['order_status']));
             update_option('siwo_discount_percent', floatval($_POST['discount_percent']));
             update_option('siwo_notification_method', sanitize_text_field($_POST['notification_method']));
+            update_option('siwo_notify_customer', isset($_POST['notify_customer']) ? 1 : 0);
+            update_option('siwo_notify_admin', isset($_POST['notify_admin']) ? 1 : 0);
             if (!empty($_FILES['siwo_logo']['name'])) {
                 $uploaded = media_handle_upload('siwo_logo', 0);
                 if (!is_wp_error($uploaded)) {
@@ -21,6 +23,8 @@ class SIWO_Settings {
         $order_status = get_option('siwo_order_status', 'pending');
         $discount_percent = get_option('siwo_discount_percent', 0);
         $notification_method = get_option('siwo_notification_method', 'email');
+        $notify_customer = get_option('siwo_notify_customer', 1);
+        $notify_admin = get_option('siwo_notify_admin', 1);
         $logo_id = get_option('siwo_logo_id', 0);
         $logo_url = $logo_id ? wp_get_attachment_url($logo_id) : '';
         ?>
@@ -44,8 +48,19 @@ class SIWO_Settings {
                         <label class="form-label"><?php _e('Notification Method', 'siteiran-wholesale'); ?></label>
                         <select name="notification_method" class="form-select">
                             <option value="email" <?php selected($notification_method, 'email'); ?>><?php _e('Email', 'siteiran-wholesale'); ?></option>
-                            <option value="sms" <?php selected($notification_method, 'sms'); ?>><?php _e('SMS', 'siteiran-wholesale'); ?></option>
+                            <option value="sms" <?php selected($notification_method, 'sms'); ?> disabled><?php _e('SMS (Coming Soon)', 'siteiran-wholesale'); ?></option>
                         </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label"><?php _e('Notify On Order Events', 'siteiran-wholesale'); ?></label>
+                        <div class="form-check">
+                            <input type="checkbox" name="notify_customer" class="form-check-input" value="1" <?php checked($notify_customer, 1); ?>>
+                            <label class="form-check-label"><?php _e('Notify Customer', 'siteiran-wholesale'); ?></label>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" name="notify_admin" class="form-check-input" value="1" <?php checked($notify_admin, 1); ?>>
+                            <label class="form-check-label"><?php _e('Notify Admin', 'siteiran-wholesale'); ?></label>
+                        </div>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label"><?php _e('Invoice Logo', 'siteiran-wholesale'); ?></label>

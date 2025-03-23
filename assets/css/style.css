@@ -73,3 +73,10 @@
     border-radius: 5px;
     margin-bottom: 20px;
 }
+.form-check {
+    margin-bottom: 10px;
+}
+
+.form-check-input {
+    margin-right: 5px;
+}
