@@ -145,6 +145,7 @@ class SIWO_Orders {
                         <tr>
                             <th><?php _e('Order ID', 'siteiran-wholesale'); ?></th>
                             <th><?php _e('Customer', 'siteiran-wholesale'); ?></th>
+                            <th><?php _e('Products', 'siteiran-wholesale'); ?></th>
                             <th><?php _e('Date', 'siteiran-wholesale'); ?></th>
                             <th><?php _e('Status', 'siteiran-wholesale'); ?></th>
                             <th><?php _e('Actions', 'siteiran-wholesale'); ?></th>
@@ -153,9 +154,34 @@ class SIWO_Orders {
                     <tbody>
                         <?php if ($orders) : ?>
                             <?php foreach ($orders as $order) : ?>
+                                <?php
+                                // گرفتن محصولات سفارش
+                                $items = $wpdb->get_results($wpdb->prepare(
+                                    "SELECT * FROM {$wpdb->prefix}siwo_order_items WHERE order_id = %d",
+                                    $order->ID
+                                ), ARRAY_A);
+                                $product_count = count($items);
+                                $product_list = [];
+                                if ($items) {
+                                    foreach ($items as $item) {
+                                        $product = wc_get_product($item['product_id']);
+                                        if ($product) {
+                                            $product_list[] = esc_html($product->get_name()) . ': ' . esc_html($item['quantity']);
+                                        }
+                                    }
+                                }
+                                ?>
                                 <tr>
                                     <td><?php echo esc_html($order->ID); ?></td>
                                     <td><?php echo esc_html(get_userdata(get_post_meta($order->ID, 'siwo_customer', true))->display_name); ?></td>
+                                    <td>
+                                        <?php if ($product_count > 0) : ?>
+                                            <?php echo esc_html($product_count) . ' ' . __('product(s)', 'siteiran-wholesale'); ?>
+                                            <a href="#" class="btn btn-link btn-sm view-products" data-bs-toggle="modal" data-bs-target="#productsModal-<?php echo esc_attr($order->ID); ?>"><?php _e('View', 'siteiran-wholesale'); ?></a>
+                                        <?php else : ?>
+                                            <?php _e('No products', 'siteiran-wholesale'); ?>
+                                        <?php endif; ?>
+                                    </td>
                                     <td><?php echo esc_html(get_the_date('', $order->ID)); ?></td>
                                     <td><?php echo esc_html(get_post_meta($order->ID, 'siwo_status', true)); ?></td>
                                     <td>
@@ -171,10 +197,36 @@ class SIWO_Orders {
                                         <?php endif; ?>
                                     </td>
                                 </tr>
+
+                                <!-- مودال برای نمایش محصولات -->
+                                <div class="modal fade" id="productsModal-<?php echo esc_attr($order->ID); ?>" tabindex="-1" aria-labelledby="productsModalLabel-<?php echo esc_attr($order->ID); ?>" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="productsModalLabel-<?php echo esc_attr($order->ID); ?>"><?php _e('Products in Order #', 'siteiran-wholesale'); ?><?php echo esc_html($order->ID); ?></h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <?php if (!empty($product_list)) : ?>
+                                                    <ul>
+                                                        <?php foreach ($product_list as $product) : ?>
+                                                            <li><?php echo $product; ?></li>
+                                                        <?php endforeach; ?>
+                                                    </ul>
+                                                <?php else : ?>
+                                                    <p><?php _e('No products found.', 'siteiran-wholesale'); ?></p>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php _e('Close', 'siteiran-wholesale'); ?></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             <?php endforeach; ?>
                         <?php else : ?>
                             <tr>
-                                <td colspan="5" class="text-center"><?php _e('No orders found.', 'siteiran-wholesale'); ?></td>
+                                <td colspan="6" class="text-center"><?php _e('No orders found.', 'siteiran-wholesale'); ?></td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
