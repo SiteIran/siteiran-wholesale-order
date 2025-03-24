@@ -16,7 +16,6 @@ class SIWO_Orders {
         if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['order_id'])) {
             $order_id = intval($_GET['order_id']);
             wp_delete_post($order_id, true);
-            // پاک کردن آیتم‌های مربوط به سفارش از جدول siwo_order_items
             $wpdb->delete($wpdb->prefix . 'siwo_order_items', ['order_id' => $order_id], ['%d']);
             echo '<div class="updated"><p>' . __('Order deleted.', 'siteiran-wholesale') . '</p></div>';
         }
@@ -90,10 +89,11 @@ class SIWO_Orders {
                     $filtered_orders[] = $order;
                 }
             }
-            $orders = $filtered_orders; // جایگزینی سفارش‌ها با نتایج فیلترشده
+            $orders = $filtered_orders;
         }
 
         $users = get_users(['fields' => ['ID', 'display_name']]);
+        $total_filtered_orders = count($orders);
         ?>
         <div class="wrap siwo-wrap">
             <h1 class="mb-4"><?php _e('Wholesale Orders', 'siteiran-wholesale'); ?></h1>
@@ -132,16 +132,20 @@ class SIWO_Orders {
                         <label class="form-label"><?php _e('Search', 'siteiran-wholesale'); ?></label>
                         <input type="text" name="filter_search" class="form-control" value="<?php echo esc_attr($filter_search); ?>" placeholder="<?php _e('Order or Product', 'siteiran-wholesale'); ?>">
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-2 d-flex gap-2">
                         <button type="submit" class="btn btn-primary w-100"><?php _e('Apply Filter', 'siteiran-wholesale'); ?></button>
+                        <a href="<?php echo admin_url('admin.php?page=siwo-orders'); ?>" class="btn btn-secondary w-100"><?php _e('Clear', 'siteiran-wholesale'); ?></a>
                     </div>
                 </div>
             </form>
 
+            <!-- تعداد سفارش‌های فیلترشده -->
+            <p class="mb-3"><?php printf(__('Showing %d orders', 'siteiran-wholesale'), $total_filtered_orders); ?></p>
+
             <!-- جدول سفارش‌ها -->
             <div class="table-responsive">
-                <table class="table table-striped table-bordered">
-                    <thead class="table-light">
+                <table class="table table-striped table-bordered" id="siwo-orders-table">
+                    <thead class="table-dark">
                         <tr>
                             <th><?php _e('Order ID', 'siteiran-wholesale'); ?></th>
                             <th><?php _e('Customer', 'siteiran-wholesale'); ?></th>
@@ -155,7 +159,6 @@ class SIWO_Orders {
                         <?php if ($orders) : ?>
                             <?php foreach ($orders as $order) : ?>
                                 <?php
-                                // گرفتن محصولات سفارش
                                 $items = $wpdb->get_results($wpdb->prepare(
                                     "SELECT * FROM {$wpdb->prefix}siwo_order_items WHERE order_id = %d",
                                     $order->ID
@@ -170,30 +173,45 @@ class SIWO_Orders {
                                         }
                                     }
                                 }
+                                $status = get_post_meta($order->ID, 'siwo_status', true);
+                                $status_class = '';
+                                switch ($status) {
+                                    case 'pending':
+                                        $status_class = 'text-warning';
+                                        break;
+                                    case 'processing':
+                                        $status_class = 'text-primary';
+                                        break;
+                                    case 'completed':
+                                        $status_class = 'text-success';
+                                        break;
+                                }
                                 ?>
                                 <tr>
                                     <td><?php echo esc_html($order->ID); ?></td>
                                     <td><?php echo esc_html(get_userdata(get_post_meta($order->ID, 'siwo_customer', true))->display_name); ?></td>
                                     <td>
                                         <?php if ($product_count > 0) : ?>
-                                            <?php echo esc_html($product_count) . ' ' . __('product(s)', 'siteiran-wholesale'); ?>
-                                            <a href="#" class="btn btn-link btn-sm view-products" data-bs-toggle="modal" data-bs-target="#productsModal-<?php echo esc_attr($order->ID); ?>"><?php _e('View', 'siteiran-wholesale'); ?></a>
+                                            <span class="badge bg-secondary"><?php echo esc_html($product_count) . ' ' . __('product(s)', 'siteiran-wholesale'); ?></span>
+                                            <a href="#" class="btn btn-link btn-sm view-products" data-bs-toggle="modal" data-bs-target="#productsModal-<?php echo esc_attr($order->ID); ?>">
+                                                <i class="bi bi-eye"></i> <?php _e('View', 'siteiran-wholesale'); ?>
+                                            </a>
                                         <?php else : ?>
                                             <?php _e('No products', 'siteiran-wholesale'); ?>
                                         <?php endif; ?>
                                     </td>
                                     <td><?php echo esc_html(get_the_date('', $order->ID)); ?></td>
-                                    <td><?php echo esc_html(get_post_meta($order->ID, 'siwo_status', true)); ?></td>
+                                    <td><span class="<?php echo esc_attr($status_class); ?>"><?php echo esc_html(ucfirst($status)); ?></span></td>
                                     <td>
                                         <?php if (!get_post_meta($order->ID, 'siwo_converted_to_wc', true)) : ?>
-                                            <a href="?page=siwo-add-order&edit_order=<?php echo $order->ID; ?>" class="btn btn-sm btn-primary"><?php _e('Edit', 'siteiran-wholesale'); ?></a>
-                                            <a href="?page=siwo-orders&action=delete&order_id=<?php echo $order->ID; ?>" class="btn btn-sm btn-danger" onclick="return confirm('<?php _e('Are you sure?', 'siteiran-wholesale'); ?>');"><?php _e('Delete', 'siteiran-wholesale'); ?></a>
+                                            <a href="?page=siwo-add-order&edit_order=<?php echo $order->ID; ?>" class="btn btn-sm btn-primary"><i class="bi bi-pencil"></i> <?php _e('Edit', 'siteiran-wholesale'); ?></a>
+                                            <a href="?page=siwo-orders&action=delete&order_id=<?php echo $order->ID; ?>" class="btn btn-sm btn-danger" onclick="return confirm('<?php _e('Are you sure?', 'siteiran-wholesale'); ?>');"><i class="bi bi-trash"></i> <?php _e('Delete', 'siteiran-wholesale'); ?></a>
                                         <?php endif; ?>
-                                        <a href="#" class="btn btn-sm btn-secondary siwo-print-order" data-order-id="<?php echo $order->ID; ?>"><?php _e('Print', 'siteiran-wholesale'); ?></a>
+                                        <a href="#" class="btn btn-sm btn-secondary siwo-print-order" data-order-id="<?php echo $order->ID; ?>"><i class="bi bi-printer"></i> <?php _e('Print', 'siteiran-wholesale'); ?></a>
                                         <?php if (!get_post_meta($order->ID, 'siwo_converted_to_wc', true)) : ?>
-                                            <a href="?page=siwo-orders&action=convert&order_id=<?php echo $order->ID; ?>" class="btn btn-sm btn-success siwo-convert-order"><?php _e('Convert to WC Order', 'siteiran-wholesale'); ?></a>
+                                            <a href="?page=siwo-orders&action=convert&order_id=<?php echo $order->ID; ?>" class="btn btn-sm btn-success siwo-convert-order"><i class="bi bi-cart-check"></i> <?php _e('Convert to WC Order', 'siteiran-wholesale'); ?></a>
                                         <?php else : ?>
-                                            <a href="<?php echo admin_url('post.php?post=' . get_post_meta($order->ID, 'siwo_converted_to_wc', true) . '&action=edit'); ?>" class="btn btn-sm btn-info"><?php _e('View WC Order', 'siteiran-wholesale'); ?></a>
+                                            <a href="<?php echo admin_url('post.php?post=' . get_post_meta($order->ID, 'siwo_converted_to_wc', true) . '&action=edit'); ?>" class="btn btn-sm btn-info"><i class="bi bi-eye"></i> <?php _e('View WC Order', 'siteiran-wholesale'); ?></a>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
@@ -208,9 +226,9 @@ class SIWO_Orders {
                                             </div>
                                             <div class="modal-body">
                                                 <?php if (!empty($product_list)) : ?>
-                                                    <ul>
+                                                    <ul class="list-group">
                                                         <?php foreach ($product_list as $product) : ?>
-                                                            <li><?php echo $product; ?></li>
+                                                            <li class="list-group-item"><?php echo $product; ?></li>
                                                         <?php endforeach; ?>
                                                     </ul>
                                                 <?php else : ?>
@@ -233,6 +251,48 @@ class SIWO_Orders {
                 </table>
             </div>
         </div>
+
+        <!-- اضافه کردن استایل و اسکریپت -->
+        <style>
+            .siwo-wrap .table th, .siwo-wrap .table td {
+                vertical-align: middle;
+                font-size: 0.9rem;
+            }
+            .siwo-wrap .table-dark {
+                background-color: #343a40;
+                color: #fff;
+            }
+            .siwo-wrap .btn-sm {
+                margin-right: 5px;
+            }
+            .siwo-wrap .badge {
+                font-size: 0.8rem;
+            }
+            .siwo-wrap .modal-body .list-group-item {
+                font-size: 0.9rem;
+            }
+            @media (max-width: 768px) {
+                .siwo-wrap .table-responsive {
+                    font-size: 0.8rem;
+                }
+                .siwo-wrap .btn-sm {
+                    margin-bottom: 5px;
+                }
+            }
+        </style>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.min.css"></script>
+        <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+        <script>
+            // مرتب‌سازی جدول
+            const table = document.getElementById('siwo-orders-table');
+            new Sortable(table.querySelector('tbody'), {
+                animation: 150,
+                handle: 'tr',
+                onEnd: function () {
+                    // می‌تونید اینجا کد اضافی برای ذخیره ترتیب جدید بنویسید
+                }
+            });
+        </script>
         <?php
     }
 }
