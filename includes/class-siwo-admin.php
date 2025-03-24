@@ -282,50 +282,40 @@ class SIWO_Admin {
 
 // تابع جدید برای تبدیل سفارش
 
-    public function handle_order_conversion() {
-        if (isset($_GET['page']) && $_GET['page'] === 'siwo-orders' && isset($_GET['action']) && $_GET['action'] === 'convert' && isset($_GET['order_id'])) {
-            $order_id = intval($_GET['order_id']);
-            $products = get_post_meta($order_id, 'siwo_products', true);
-            $customer_id = get_post_meta($order_id, 'siwo_customer', true);
-            $discount_percent = get_option('siwo_discount_percent', 0);
-    
-            if ($products && $customer_id) {
-                // Create new WooCommerce order
-                $order = wc_create_order([
-                    'customer_id' => $customer_id,
-                ]);
-    
-                // Add products to order
-                foreach ($products as $product_id => $quantity) {
-                    $product = wc_get_product($product_id);
-                    if ($product) {
-                        $order->add_product($product, $quantity);
-                    }
+public function handle_order_conversion() {
+    if (isset($_GET['page']) && $_GET['page'] === 'siwo-orders' && isset($_GET['action']) && $_GET['action'] === 'convert' && isset($_GET['order_id'])) {
+        $order_id = intval($_GET['order_id']);
+        $products = get_post_meta($order_id, 'siwo_products', true);
+        $customer_id = get_post_meta($order_id, 'siwo_customer', true);
+        $discount_percent = get_option('siwo_discount_percent', 0);
+
+        if ($products && $customer_id) {
+            $order = wc_create_order(['customer_id' => $customer_id]);
+            foreach ($products as $product_id => $quantity) {
+                $product = wc_get_product($product_id);
+                if ($product) {
+                    $order->add_product($product, $quantity);
                 }
-    
-                // Apply discount if set
-                if ($discount_percent > 0) {
-                    $subtotal = $order->get_subtotal();
-                    $discount_amount = $subtotal * ($discount_percent / 100);
-                    $order->set_discount_total($discount_amount);
-                    $order->set_total($subtotal - $discount_amount);
-                }
-    
-                // Set status based on SIWO status
-                $siwo_status = get_post_meta($order_id, 'siwo_status', true);
-                $wc_status = $siwo_status === 'completed' ? 'completed' : ($siwo_status === 'processing' ? 'processing' : 'pending');
-                $order->set_status($wc_status);
-                $order->save();
-    
-                // Mark SIWO order as converted
-                update_post_meta($order_id, 'siwo_converted_to_wc', $order->get_id());
-    
-                // Redirect with success message
-                wp_redirect(admin_url('admin.php?page=siwo-orders&converted=1'));
-                exit;
             }
+            if ($discount_percent > 0) {
+                $subtotal = $order->get_subtotal();
+                $discount_amount = $subtotal * ($discount_percent / 100);
+                $order->set_discount_total($discount_amount);
+                $order->set_total($subtotal - $discount_amount);
+            }
+            $siwo_status = get_post_meta($order_id, 'siwo_status', true);
+            $wc_status = $siwo_status === 'completed' ? 'completed' : ($siwo_status === 'processing' ? 'processing' : 'pending');
+            $order->set_status($wc_status);
+            $order->save();
+
+            update_post_meta($order_id, 'siwo_converted_to_wc', $order->get_id());
+            $this->send_order_notification($order_id, 'converted'); // اعلان تبدیل
+
+            wp_redirect(admin_url('admin.php?page=siwo-orders&converted=1'));
+            exit;
         }
     }
+}
 
 
 //ایجاد تابع گزارشات 
@@ -557,41 +547,151 @@ public function reports_page() {
         $customer = get_userdata($customer_id);
         $notify_customer = get_option('siwo_notify_customer', 1);
         $notify_admin = get_option('siwo_notify_admin', 1);
+        $notification_method = get_option('siwo_notification_method', 'email');
+        $email_header = get_option('siwo_email_header', 'Wholesale Order Notification');
+        $logo_id = get_option('siwo_logo_id', 0);
+        $logo_url = $logo_id ? wp_get_attachment_url($logo_id) : '';
+        $sms_provider = get_option('siwo_sms_provider', 'sms_ir');
+        $sms_params_config = get_option('siwo_sms_params', ['ORDER_ID', 'STATUS', 'PRODUCTS', 'NOTES', 'FULLNAME']);
     
         if (!$products || !$customer) return;
     
-        // Prepare email content
-        $subject = $event === 'created' ? sprintf(__('New Wholesale Order #%s', 'siteiran-wholesale'), $order_id) : sprintf(__('Order #%s Status Updated', 'siteiran-wholesale'), $order_id);
-        $message = '<h2>' . $subject . '</h2>';
+        $subject = $event === 'created' ? sprintf(__('New Wholesale Order #%s', 'siteiran-wholesale'), $order_id) :
+                   ($event === 'status_updated' ? sprintf(__('Order #%s Status Updated', 'siteiran-wholesale'), $order_id) :
+                   sprintf(__('Order #%s Converted to WooCommerce', 'siteiran-wholesale'), $order_id));
+    
+        $message = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">';
+        $message .= $logo_url ? '<img src="' . esc_url($logo_url) . '" alt="Logo" style="max-width: 150px; display: block; margin-bottom: 20px;">' : '';
+        $message .= '<h2 style="color: #007bff;">' . esc_html($email_header) . '</h2>';
         $message .= '<p><strong>' . __('Order ID:', 'siteiran-wholesale') . '</strong> ' . $order_id . '</p>';
         $message .= '<p><strong>' . __('Status:', 'siteiran-wholesale') . '</strong> ' . ucfirst($status) . '</p>';
         $message .= '<p><strong>' . __('Customer:', 'siteiran-wholesale') . '</strong> ' . esc_html($customer->display_name) . '</p>';
-        $message .= '<h3>' . __('Products:', 'siteiran-wholesale') . '</h3>';
-        $message .= '<ul>';
+        $message .= '<h3 style="margin-top: 20px;">' . __('Order Details:', 'siteiran-wholesale') . '</h3>';
+        $message .= '<table style="width: 100%; border-collapse: collapse; margin: 10px 0;">';
+        $message .= '<thead><tr style="background: #f5f5f5;"><th style="padding: 10px; border: 1px solid #ddd;">' . __('Product', 'siteiran-wholesale') . '</th><th style="padding: 10px; border: 1px solid #ddd;">' . __('Qty', 'siteiran-wholesale') . '</th><th style="padding: 10px; border: 1px solid #ddd;">' . __('Total', 'siteiran-wholesale') . '</th></tr></thead><tbody>';
         foreach ($products as $product_id => $quantity) {
             $product = wc_get_product($product_id);
             if ($product) {
-                $message .= '<li>' . esc_html($product->get_name()) . ' - ' . __('Qty:', 'siteiran-wholesale') . ' ' . $quantity . ' - ' . wc_price($product->get_price() * $quantity) . '</li>';
+                $message .= '<tr><td style="padding: 10px; border: 1px solid #ddd;">' . esc_html($product->get_name()) . '</td><td style="padding: 10px; border: 1px solid #ddd;">' . $quantity . '</td><td style="padding: 10px; border: 1px solid #ddd;">' . wc_price($product->get_price() * $quantity) . '</td></tr>';
             }
         }
-        $message .= '</ul>';
+        $message .= '</tbody></table>';
         if ($notes) {
-            $message .= '<p><strong>' . __('Notes:', 'siteiran-wholesale') . '</strong> ' . esc_html($notes) . '</p>';
+            $message .= '<p style="margin-top: 20px;"><strong>' . __('Notes:', 'siteiran-wholesale') . '</strong> ' . esc_html($notes) . '</p>';
         }
+        $message .= '<p style="color: #777; font-size: 0.9em; margin-top: 20px;">' . __('Sent from', 'siteiran-wholesale') . ' ' . get_bloginfo('name') . '</p>';
+        $message .= '</body></html>';
     
         $headers = ['Content-Type: text/html; charset=UTF-8'];
     
-        // Send to customer
-        if ($notify_customer && $customer->user_email) {
-            wp_mail($customer->user_email, $subject, $message, $headers);
+        // Prepare SMS parameters dynamically
+        $sms_params = [];
+        foreach ($sms_params_config as $param) {
+            switch ($param) {
+                case 'ORDER_ID':
+                    $sms_params[] = ['name' => 'ORDER_ID', 'value' => $order_id];
+                    break;
+                case 'STATUS':
+                    $sms_params[] = ['name' => 'STATUS', 'value' => ucfirst($status)];
+                    break;
+                case 'PRODUCTS':
+                    $product_list = '';
+                    foreach ($products as $product_id => $quantity) {
+                        $product = wc_get_product($product_id);
+                        if ($product) {
+                            $product_list .= $product->get_name() . ": $quantity, ";
+                        }
+                    }
+                    $sms_params[] = ['name' => 'PRODUCTS', 'value' => rtrim($product_list, ', ')];
+                    break;
+                case 'NOTES':
+                    if ($notes) {
+                        $sms_params[] = ['name' => 'NOTES', 'value' => $notes];
+                    }
+                    break;
+                case 'FULLNAME':
+                    $sms_params[] = ['name' => 'FULLNAME', 'value' => $customer->first_name . ' ' . $customer->last_name];
+                    break;
+            }
         }
     
-        // Send to admin
-        if ($notify_admin) {
-            $admin_email = get_option('admin_email');
-            wp_mail($admin_email, $subject, $message, $headers);
+        if ($notification_method === 'email' || $notification_method === 'both') {
+            if ($notify_customer && $customer->user_email) {
+                wp_mail($customer->user_email, $subject, $message, $headers);
+            }
+            if ($notify_admin) {
+                $admin_email = get_option('admin_email');
+                wp_mail($admin_email, $subject, $message, $headers);
+            }
+        }
+    
+        if ($notification_method === 'sms' || $notification_method === 'both') {
+            $phone = $this->get_customer_phone($customer_id);
+            if ($notify_customer && $phone) {
+                $this->send_sms_notification($phone, $sms_params, $sms_provider);
+            }
+            if ($notify_admin) {
+                $admin_phone = get_option('admin_phone', '');
+                if ($admin_phone) {
+                    $this->send_sms_notification($admin_phone, $sms_params, $sms_provider);
+                }
+            }
         }
     }
+    
+    private function get_customer_phone($customer_id) {
+        $phone = get_user_meta($customer_id, 'billing_phone', true);
+        return $phone ?: '';
+    }
+    
+    private function send_sms_notification($phone, $params, $provider) {
+        switch ($provider) {
+            case 'sms_ir':
+                $api_key = get_option('siwo_sms_ir_api_key', '');
+                $template_id = get_option('siwo_sms_ir_template_id', '');
+                if (!$api_key || !$template_id || !$phone) {
+                    error_log("SMS.ir: Missing API key, template ID, or phone number.");
+                    return;
+                }
+    
+                $curl = curl_init();
+                curl_setopt_array($curl, [
+                    CURLOPT_URL => 'https://api.sms.ir/v1/send/verify',
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_ENCODING => '',
+                    CURLOPT_MAXREDIRS => 10,
+                    CURLOPT_TIMEOUT => 0,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                    CURLOPT_CUSTOMREQUEST => 'POST',
+                    CURLOPT_POSTFIELDS => json_encode([
+                        'mobile' => $phone,
+                        'templateId' => $template_id,
+                        'parameters' => $params,
+                    ]),
+                    CURLOPT_HTTPHEADER => [
+                        'Content-Type: application/json',
+                        'Accept: text/plain',
+                        'x-api-key: ' . $api_key,
+                    ],
+                ]);
+                $response = curl_exec($curl);
+                $error = curl_error($curl);
+                curl_close($curl);
+    
+                if ($error) {
+                    error_log("SMS.ir Error: $error");
+                } else {
+                    error_log("SMS.ir Response: $response");
+                }
+                break;
+    
+            default:
+                error_log("SMS provider '$provider' not supported.");
+                break;
+        }
+    }
+    
 
     
 }
