@@ -5,24 +5,30 @@ if (!defined('ABSPATH')) {
 
 class SIWO_Orders {
     public function render() {
+        global $wpdb;
+
         // نمایش پیام موفقیت - تبدیل به ووکامرس
         if (isset($_GET['converted']) && $_GET['converted'] == 1) {
             echo '<div class="updated"><p>' . __('Order successfully converted to WooCommerce.', 'siteiran-wholesale') . '</p></div>';
         }
-        
+
+        // حذف سفارش
         if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['order_id'])) {
-            wp_delete_post(intval($_GET['order_id']));
+            $order_id = intval($_GET['order_id']);
+            wp_delete_post($order_id, true);
+            // پاک کردن آیتم‌های مربوط به سفارش از جدول siwo_order_items
+            $wpdb->delete($wpdb->prefix . 'siwo_order_items', ['order_id' => $order_id], ['%d']);
             echo '<div class="updated"><p>' . __('Order deleted.', 'siteiran-wholesale') . '</p></div>';
         }
 
-        // Filter parameters
+        // پارامترهای فیلتر
         $filter_status = isset($_GET['filter_status']) ? sanitize_text_field($_GET['filter_status']) : '';
         $filter_customer = isset($_GET['filter_customer']) ? sanitize_text_field($_GET['filter_customer']) : '';
         $filter_date_start = isset($_GET['filter_date_start']) ? sanitize_text_field($_GET['filter_date_start']) : '';
         $filter_date_end = isset($_GET['filter_date_end']) ? sanitize_text_field($_GET['filter_date_end']) : '';
         $filter_search = isset($_GET['filter_search']) ? sanitize_text_field($_GET['filter_search']) : '';
 
-        // Base query arguments
+        // آرگومان‌های پایه برای کوئری
         $args = [
             'post_type' => 'siwo_order',
             'posts_per_page' => -1,
@@ -56,20 +62,23 @@ class SIWO_Orders {
             $args['date_query']['inclusive'] = true;
         }
 
-        // Initial query to get all orders based on other filters
+        // گرفتن سفارش‌ها بر اساس فیلترهای اولیه
         $orders = get_posts($args);
 
-        // Custom search filter for title and products
+        // فیلتر جست‌وجوی سفارشی برای عنوان و محصولات
         if ($filter_search) {
             $filtered_orders = [];
             foreach ($orders as $order) {
                 $title_match = stripos($order->post_title, $filter_search) !== false;
-                $products = get_post_meta($order->ID, 'siwo_products', true);
+                $items = $wpdb->get_results($wpdb->prepare(
+                    "SELECT * FROM {$wpdb->prefix}siwo_order_items WHERE order_id = %d",
+                    $order->ID
+                ), ARRAY_A);
                 $product_match = false;
 
-                if ($products && is_array($products)) {
-                    foreach ($products as $product_id => $quantity) {
-                        $product = wc_get_product($product_id);
+                if ($items) {
+                    foreach ($items as $item) {
+                        $product = wc_get_product($item['product_id']);
                         if ($product && stripos($product->get_name(), $filter_search) !== false) {
                             $product_match = true;
                             break;
@@ -81,7 +90,7 @@ class SIWO_Orders {
                     $filtered_orders[] = $order;
                 }
             }
-            $orders = $filtered_orders; // Replace orders with filtered results
+            $orders = $filtered_orders; // جایگزینی سفارش‌ها با نتایج فیلترشده
         }
 
         $users = get_users(['fields' => ['ID', 'display_name']]);
@@ -89,7 +98,7 @@ class SIWO_Orders {
         <div class="wrap siwo-wrap">
             <h1 class="mb-4"><?php _e('Wholesale Orders', 'siteiran-wholesale'); ?></h1>
 
-            <!-- Filter Form -->
+            <!-- فرم فیلتر -->
             <form method="get" class="mb-4">
                 <input type="hidden" name="page" value="siwo-orders">
                 <div class="row g-3 align-items-end">
@@ -129,7 +138,7 @@ class SIWO_Orders {
                 </div>
             </form>
 
-            <!-- Orders Table -->
+            <!-- جدول سفارش‌ها -->
             <div class="table-responsive">
                 <table class="table table-striped table-bordered">
                     <thead class="table-light">

@@ -69,3 +69,76 @@ function siwo_check_woocommerce() {
     return true;
 }
 add_action('plugins_loaded', 'siwo_check_woocommerce');
+
+
+register_activation_hook(__FILE__, 'siwo_create_order_items_table');
+
+function siwo_create_order_items_table() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'siwo_order_items';
+    $charset_collate = $wpdb->get_charset_collate();
+
+    $sql = "CREATE TABLE $table_name (
+        item_id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        order_id BIGINT(20) UNSIGNED NOT NULL,
+        product_id BIGINT(20) UNSIGNED NOT NULL,
+        quantity INT NOT NULL,
+        price DECIMAL(10, 2) NOT NULL,
+        PRIMARY KEY (item_id),
+        INDEX idx_order_id (order_id),
+        INDEX idx_product_id (product_id)
+    ) $charset_collate;";
+
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+}
+
+
+
+
+
+function siwo_migrate_order_items() {
+    global $wpdb;
+    $orders = get_posts([
+        'post_type' => 'siwo_order',
+        'posts_per_page' => -1,
+        'meta_key' => 'siwo_products',
+    ]);
+
+    foreach ($orders as $order) {
+        $order_id = $order->ID;
+        $products = get_post_meta($order_id, 'siwo_products', true);
+        if ($products && is_array($products)) {
+            foreach ($products as $product_id => $quantity) {
+                $product = wc_get_product($product_id);
+                if ($product) {
+                    $wpdb->insert(
+                        $wpdb->prefix . 'siwo_order_items',
+                        [
+                            'order_id' => $order_id,
+                            'product_id' => $product_id,
+                            'quantity' => $quantity,
+                            'price' => $product->get_price(),
+                        ],
+                        ['%d', '%d', '%d', '%f']
+                    );
+                }
+            }
+            // بعد از انتقال، متا رو پاک می‌کنیم
+            delete_post_meta($order_id, 'siwo_products');
+        }
+    }
+}
+
+// موقع فعال‌سازی پلاگین اجرا بشه
+register_activation_hook(__FILE__, 'siwo_migrate_order_items');
+
+
+    
+//اضافه کردن ایندکس به متا دیتا
+register_activation_hook(__FILE__, 'siwo_add_meta_indexes');
+
+function siwo_add_meta_indexes() {
+    global $wpdb;
+    $wpdb->query("ALTER TABLE {$wpdb->postmeta} ADD INDEX meta_key_value (meta_key(191), meta_value(191))");
+}
