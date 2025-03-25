@@ -3,80 +3,250 @@
     margin: 20px auto;
     padding: 20px;
     background: #fff;
-    border-radius: 5px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    font-family: 'Arial', sans-serif;
 }
 
-.siwo-dashboard {
+/* استایل‌های عنوان‌ها */
+.siwo-wrap h1 {
+    font-size: 1.8rem;
+    color: #333;
+    margin-bottom: 20px;
     display: flex;
-    gap: 10px;
-    margin-top: 20px;
+    align-items: center;
 }
 
+.siwo-wrap h5.card-title {
+    font-size: 1.2rem;
+    color: #444;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+}
+
+.siwo-wrap h5.card-title i {
+    margin-right: 8px;
+    color: #007bff;
+}
+
+/* استایل کارت‌ها */
+.card {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+    transition: transform 0.2s;
+    min-width: 255px;
+    max-width: 100%;
+}
+@media (max-width: 768px) {
+    .card {
+        min-width: 100%;
+        max-width: 100%;
+    }
+}
+.card:hover {
+    transform: translateY(-3px);
+}
+
+.card-body {
+    padding: 20px;
+}
+
+/* استایل جدول */
 .siwo-order-table {
     width: 100%;
     margin-bottom: 20px;
+    border-collapse: collapse;
 }
 
 .siwo-order-table th,
 .siwo-order-table td {
-    padding: 10px;
+    padding: 12px 15px;
+    vertical-align: middle;
+    border: 1px solid #dee2e6;
 }
 
-.siwo-product-search {
-    width: 100%;
+.siwo-order-table th {
+    background-color: #343a40;
+    color: #fff;
+    font-weight: 600;
+    text-align: left;
 }
 
-/* Filter Form */
-.form-label {
+.siwo-order-table td {
+    background-color: #fff;
+}
+
+/* تنظیم عرض ستون‌ها */
+.siwo-order-table th:nth-child(1),
+.siwo-order-table td:nth-child(1) {
+    width: 40%; /* ستون Product */
+}
+
+.siwo-order-table th:nth-child(2),
+.siwo-order-table td:nth-child(2) {
+    width: 15%; /* ستون Quantity */
+}
+
+.siwo-order-table th:nth-child(3),
+.siwo-order-table td:nth-child(3) {
+    width: 15%; /* ستون Price */
+}
+
+.siwo-order-table th:nth-child(4),
+.siwo-order-table td:nth-child(4) {
+    width: 15%; /* ستون Subtotal */
+}
+
+.siwo-order-table th:nth-child(5),
+.siwo-order-table td:nth-child(5) {
+    width: 15%; /* ستون Action */
+}
+
+/* استایل‌های Select2 */
+.siwo-wrap .select2-container {
+    width: 100% !important;
+}
+
+.siwo-wrap .select2-selection--single {
+    height: 38px !important;
+    border: 1px solid #ced4da !important;
+    border-radius: 4px !important;
+}
+
+.siwo-wrap .select2-selection__rendered {
+    line-height: 38px !important;
+    padding-left: 10px !important;
+    color: #495057 !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+}
+
+.siwo-wrap .select2-selection__arrow {
+    height: 38px !important;
+    width: 30px !important;
+}
+
+.siwo-wrap .select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #6c757d !important;
+}
+
+/* استایل‌های ورودی‌ها */
+.siwo-wrap .form-control,
+.siwo-wrap .form-select {
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+    padding: 8px 12px;
+    font-size: 0.95rem;
+    color: #495057;
+}
+
+.siwo-wrap .form-control:focus,
+.siwo-wrap .form-select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+}
+
+/* استایل دکمه‌ها */
+.siwo-wrap .btn {
+    border-radius: 4px;
+    font-size: 0.9rem;
+    padding: 8px 15px;
+}
+
+.siwo-wrap .btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.siwo-wrap .btn-primary:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+}
+
+.siwo-wrap .btn-outline-primary {
+    border-color: #007bff;
+    color: #007bff;
+}
+
+.siwo-wrap .btn-outline-primary:hover {
+    background-color: #007bff;
+    color: #fff;
+}
+
+.siwo-wrap .btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    padding: 5px 10px;
+    font-size: 0.85rem;
+}
+
+.siwo-wrap .btn-danger:hover {
+    background-color: #c82333;
+    border-color: #c82333;
+}
+
+/* استایل جمع کل */
+.siwo-wrap .order-total {
+    font-size: 1.3rem;
     font-weight: bold;
+    color: #28a745;
+    margin: 0;
 }
 
-@media (max-width: 768px) {
-    .siwo-dashboard {
-        flex-direction: column;
+/* استایل انیمیشن */
+.siwo-wrap .order-item-row {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
-.card {
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    background: #fff;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
 
-.card-body {
-    padding: 15px;
-}
+/* پاسخ‌گویی برای موبایل */
+@media (max-width: 768px) {
+    .siwo-wrap {
+        padding: 15px;
+    }
 
-.card-title {
-    font-size: 1.25em;
-    margin-bottom: 10px;
-}
+    .siwo-wrap h1 {
+        font-size: 1.5rem;
+    }
 
-.card-text {
-    font-size: 1.5em;
-    margin: 0;
-}
+    .siwo-wrap .card-body {
+        padding: 15px;
+    }
 
-.text-muted {
-    font-size: 1em;
-}
+    .siwo-order-table th,
+    .siwo-order-table td {
+        padding: 8px 10px;
+        font-size: 0.85rem;
+    }
 
-.list-unstyled {
-    margin: 0;
-}
-.alert-info {
-    background-color: #cce5ff;
-    border-color: #b8daff;
-    color: #004085;
-    padding: 15px;
-    border-radius: 5px;
-    margin-bottom: 20px;
-}
-.form-check {
-    margin-bottom: 10px;
-}
+    .siwo-wrap .btn {
+        font-size: 0.85rem;
+        padding: 6px 12px;
+    }
 
-.form-check-input {
-    margin-right: 5px;
+    .siwo-wrap .select2-selection--single {
+        height: 34px !important;
+    }
+
+    .siwo-wrap .select2-selection__rendered {
+        line-height: 34px !important;
+    }
+
+    .siwo-wrap .select2-selection__arrow {
+        height: 34px !important;
+    }
 }

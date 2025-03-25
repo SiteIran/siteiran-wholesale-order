@@ -135,10 +135,3 @@ register_activation_hook(__FILE__, 'siwo_migrate_order_items');
 
 
     
-//اضافه کردن ایندکس به متا دیتا
-register_activation_hook(__FILE__, 'siwo_add_meta_indexes');
-
-function siwo_add_meta_indexes() {
-    global $wpdb;
-    $wpdb->query("ALTER TABLE {$wpdb->postmeta} ADD INDEX meta_key_value (meta_key(191), meta_value(191))");
-}

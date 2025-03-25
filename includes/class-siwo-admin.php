@@ -11,6 +11,32 @@ class SIWO_Admin {
         add_action('wp_ajax_siwo_get_product_price', [$this, 'get_product_price']);
         add_action('admin_init', [$this, 'handle_order_conversion']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_report_scripts']);
+        // اضافه کردن اسکریپت‌ها و استایل‌ها برای صفحه سفارش
+        add_action('admin_enqueue_scripts', [$this, 'enqueue_order_scripts']);
+    }
+
+    public function enqueue_order_scripts($hook) {
+        error_log("Hook value in enqueue_order_scripts: $hook"); // لاگ برای دیباگ
+    
+        // شرط برای لود اسکریپت‌ها و استایل‌ها توی همه صفحات افزونه
+        if (strpos($hook, 'siwo-') !== false) {
+            error_log("Loading scripts and styles for hook: $hook"); // لاگ برای تأیید لود
+    
+            wp_enqueue_script('select2', 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js', ['jquery'], '4.1.0-rc.0', true);
+            wp_enqueue_style('select2', 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css', [], '4.1.0-rc.0');
+            wp_enqueue_style('bootstrap-icons', 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.min.css', [], '1.10.5');
+            wp_enqueue_script('siwo-scripts', plugin_dir_url(dirname(__FILE__)) . '/assets/js/scripts.js', ['jquery', 'select2'], '1.0.1', true);
+            wp_enqueue_style('siwo-style', plugin_dir_url(dirname(__FILE__)) . '/assets/css/style.css', [], '1.0.1');
+    
+            // پاس دادن متغیرهای PHP به جاوااسکریپت
+            wp_localize_script('siwo-scripts', 'siwo_data', [
+                'currency_symbol' => get_woocommerce_currency_symbol(),
+                'search_product_placeholder' => __('Search product...', 'siteiran-wholesale'),
+                'remove_label' => __('Remove', 'siteiran-wholesale'),
+            ]);
+        } else {
+            error_log("Scripts and styles NOT loaded for hook: $hook"); // لاگ برای رد شدن شرط
+        }
     }
 
     public function register_menu() {
@@ -53,109 +79,198 @@ class SIWO_Admin {
         ), ARRAY_A) : [];
         $order_status = $is_edit ? get_post_meta($order_id, 'siwo_status', true) : '';
         $order_notes = $is_edit ? get_post_meta($order_id, 'siwo_notes', true) : '';
+        $customer_id = $is_edit ? get_post_meta($order_id, 'siwo_customer', true) : '';
         $is_converted = $is_edit && get_post_meta($order_id, 'siwo_converted_to_wc', true);
-    
-        if (isset($_POST['siwo_save_order']) && !$is_converted) {
-            $this->save_order($_POST, $order_id);
+
+        // بررسی پیام موفقیت یا خطا
+        $message = '';
+        $message_type = '';
+        if (isset($_GET['updated']) && $_GET['updated'] == 1) {
+            $message = __('Order saved successfully!', 'siteiran-wholesale');
+            $message_type = 'success';
+        } elseif (isset($_GET['error'])) {
+            $message = __('Error saving order. Please try again.', 'siteiran-wholesale');
+            $message_type = 'error';
         }
-    
+
+        if (isset($_POST['siwo_save_order']) && !$is_converted) {
+            $result = $this->save_order($_POST, $order_id);
+            if ($result) {
+                wp_redirect(admin_url('admin.php?page=siwo-add-order' . ($is_edit ? '&edit_order=' . $order_id : '') . '&updated=1'));
+                exit;
+            } else {
+                wp_redirect(admin_url('admin.php?page=siwo-add-order' . ($is_edit ? '&edit_order=' . $order_id : '') . '&error=1'));
+                exit;
+            }
+        }
+
         $title = $is_edit ? __('Edit Wholesale Order', 'siteiran-wholesale') : __('Add New Wholesale Order', 'siteiran-wholesale');
+        $users = get_users(['fields' => ['ID', 'display_name']]);
         ?>
         <div class="wrap siwo-wrap">
-            <h1 class="mb-4"><?php echo esc_html($title); ?></h1>
+            <h1 class="mb-4 d-flex align-items-center">
+                <i class="bi bi-cart-plus me-2"></i>
+                <?php echo esc_html($title); ?>
+            </h1>
+            
+            <?php if ($message) : ?>
+                <div class="notice notice-<?php echo esc_attr($message_type); ?> is-dismissible">
+                    <p><?php echo esc_html($message); ?></p>
+                </div>
+            <?php endif; ?>
             <?php if ($is_converted) : ?>
                 <div class="alert alert-info"><?php _e('This order has been converted to WooCommerce and cannot be edited.', 'siteiran-wholesale'); ?></div>
             <?php endif; ?>
+
             <form method="post" class="siwo-order-form" <?php echo $is_converted ? 'disabled' : ''; ?>>
-                <div class="table-responsive">
-                    <table class="table table-bordered siwo-order-table">
-                        <thead class="table-light">
-                            <tr>
-                                <th><?php _e('Product', 'siteiran-wholesale'); ?></th>
-                                <th><?php _e('Quantity', 'siteiran-wholesale'); ?></th>
-                                <th><?php _e('Price', 'siteiran-wholesale'); ?></th>
-                                <th><?php _e('Action', 'siteiran-wholesale'); ?></th>
-                            </tr>
-                        </thead>
-                        <tbody id="siwo-order-items">
-                            <?php
-                            if ($is_edit && !empty($items)) {
-                                foreach ($items as $item) {
-                                    $product_id = $item['product_id'];
-                                    $quantity = $item['quantity'];
-                                    $product = wc_get_product($product_id);
-                                    if ($product) {
+                <!-- انتخاب کاربر -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title d-flex align-items-center">
+                            <i class="bi bi-person me-2 text-primary"></i>
+                            <?php _e('Customer', 'siteiran-wholesale'); ?>
+                        </h5>
+                        <div class="mb-3">
+                            <label for="siwo_customer" class="form-label"><?php _e('Select Customer', 'siteiran-wholesale'); ?></label>
+                            <?php if ($is_converted) : ?>
+                                <?php echo esc_html(get_userdata($customer_id)->display_name); ?>
+                            <?php else : ?>
+                                <select id="siwo_customer" name="siwo_customer" class="form-select w-25" required>
+                                    <option value=""><?php _e('Select Customer', 'siteiran-wholesale'); ?></option>
+                                    <?php foreach ($users as $user) : ?>
+                                        <option value="<?php echo esc_attr($user->ID); ?>" <?php selected($customer_id, $user->ID); ?>><?php echo esc_html($user->display_name); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- جدول محصولات -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title d-flex align-items-center">
+                            <i class="bi bi-box-seam me-2 text-primary"></i>
+                            <?php _e('Products', 'siteiran-wholesale'); ?>
+                        </h5>
+                        <div class="table-responsive">
+                            <table class="table table-bordered siwo-order-table">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th style="width: 40%;"><?php _e('Product', 'siteiran-wholesale'); ?></th>
+                                        <th style="width: 15%;"><?php _e('Quantity', 'siteiran-wholesale'); ?></th>
+                                        <th style="width: 15%;"><?php _e('Price', 'siteiran-wholesale'); ?></th>
+                                        <th style="width: 15%;"><?php _e('Subtotal', 'siteiran-wholesale'); ?></th>
+                                        <th style="width: 15%;"><?php _e('Action', 'siteiran-wholesale'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="siwo-order-items">
+                                    <?php
+                                    if ($is_edit && !empty($items)) {
+                                        foreach ($items as $item) {
+                                            $product_id = $item['product_id'];
+                                            $quantity = $item['quantity'];
+                                            $product = wc_get_product($product_id);
+                                            if ($product) {
+                                                ?>
+                                                <tr class="order-item-row">
+                                                    <td>
+                                                        <?php if ($is_converted) : ?>
+                                                            <?php echo esc_html($product->get_name()); ?>
+                                                        <?php else : ?>
+                                                            <select class="siwo-product-search form-select" name="products[]" data-price="<?php echo esc_attr($product->get_price()); ?>">
+                                                                <option value="<?php echo esc_attr($product_id); ?>" selected><?php echo esc_html($product->get_name()); ?></option>
+                                                            </select>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td>
+                                                        <?php if ($is_converted) : ?>
+                                                            <?php echo esc_html($quantity); ?>
+                                                        <?php else : ?>
+                                                            <input type="number" class="form-control quantity-input" name="quantity[]" min="1" value="<?php echo esc_attr($quantity); ?>" />
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td class="product-price"><?php echo wc_price($product->get_price()); ?></td>
+                                                    <td class="subtotal"><?php echo wc_price($product->get_price() * $quantity); ?></td>
+                                                    <td>
+                                                        <?php if (!$is_converted) : ?>
+                                                            <button type="button" class="btn btn-danger btn-sm siwo-remove-row"><i class="bi bi-trash"></i> <?php _e('Remove', 'siteiran-wholesale'); ?></button>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                </tr>
+                                                <?php
+                                            }
+                                        }
+                                    } else {
                                         ?>
-                                        <tr>
+                                        <tr class="order-item-row">
                                             <td>
-                                                <?php if ($is_converted) : ?>
-                                                    <?php echo esc_html($product->get_name()); ?>
-                                                <?php else : ?>
-                                                    <select class="siwo-product-search form-select" name="products[]">
-                                                        <option value="<?php echo esc_attr($product_id); ?>" selected><?php echo esc_html($product->get_name()); ?></option>
-                                                    </select>
-                                                <?php endif; ?>
+                                                <select class="siwo-product-search form-select" name="products[]">
+                                                    <option value=""><?php _e('Search product...', 'siteiran-wholesale'); ?></option>
+                                                </select>
                                             </td>
-                                            <td>
-                                                <?php if ($is_converted) : ?>
-                                                    <?php echo esc_html($quantity); ?>
-                                                <?php else : ?>
-                                                    <input type="number" class="form-control" name="quantity[]" min="1" value="<?php echo esc_attr($quantity); ?>" />
-                                                <?php endif; ?>
-                                            </td>
-                                            <td><?php echo wc_price($product->get_price()); ?></td>
-                                            <td>
-                                                <?php if (!$is_converted) : ?>
-                                                    <button type="button" class="btn btn-danger siwo-remove-row"><?php _e('Remove', 'siteiran-wholesale'); ?></button>
-                                                <?php endif; ?>
-                                            </td>
+                                            <td><input type="number" class="form-control quantity-input" name="quantity[]" min="1" value="1" /></td>
+                                            <td class="product-price">-</td>
+                                            <td class="subtotal"><?php echo wc_price(0); ?></td>
+                                            <td><button type="button" class="btn btn-danger btn-sm siwo-remove-row"><i class="bi bi-trash"></i> <?php _e('Remove', 'siteiran-wholesale'); ?></button></td>
                                         </tr>
                                         <?php
                                     }
-                                }
-                            } else {
-                                ?>
-                                <tr>
-                                    <td>
-                                        <select class="siwo-product-search form-select" name="products[]">
-                                            <option value=""><?php _e('Search product...', 'siteiran-wholesale'); ?></option>
-                                        </select>
-                                    </td>
-                                    <td><input type="number" class="form-control" name="quantity[]" min="1" value="1" /></td>
-                                    <td>-</td>
-                                    <td><button type="button" class="btn btn-danger siwo-remove-row"><?php _e('Remove', 'siteiran-wholesale'); ?></button></td>
-                                </tr>
-                                <?php
-                            }
-                            ?>
-                        </tbody>
-                    </table>
-                </div>
-                <?php if ($is_edit) : ?>
-                    <div class="mb-3">
-                        <label class="form-label"><?php _e('Order Status:', 'siteiran-wholesale'); ?></label>
-                        <?php if ($is_converted) : ?>
-                            <?php echo esc_html($order_status); ?>
-                        <?php else : ?>
-                            <select name="order_status" class="form-select w-25">
-                                <option value="pending" <?php selected($order_status, 'pending'); ?>><?php _e('Pending', 'siteiran-wholesale'); ?></option>
-                                <option value="processing" <?php selected($order_status, 'processing'); ?>><?php _e('Processing', 'siteiran-wholesale'); ?></option>
-                                <option value="completed" <?php selected($order_status, 'completed'); ?>><?php _e('Completed', 'siteiran-wholesale'); ?></option>
-                            </select>
+                                    ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <?php if (!$is_converted) : ?>
+                            <button type="button" id="siwo-add-row" class="btn btn-outline-primary"><i class="bi bi-plus-circle"></i> <?php _e('Add Product', 'siteiran-wholesale'); ?></button>
                         <?php endif; ?>
                     </div>
-                <?php endif; ?>
-                <div class="mb-3">
-                    <label class="form-label"><?php _e('Order Notes:', 'siteiran-wholesale'); ?></label>
-                    <?php if ($is_converted) : ?>
-                        <?php echo esc_html($order_notes); ?>
-                    <?php else : ?>
-                        <textarea name="order_notes" class="form-control" rows="3"><?php echo esc_textarea($order_notes); ?></textarea>
-                    <?php endif; ?>
                 </div>
+
+                <!-- اطلاعات سفارش -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title d-flex align-items-center">
+                            <i class="bi bi-info-circle me-2 text-primary"></i>
+                            <?php _e('Order Details', 'siteiran-wholesale'); ?>
+                        </h5>
+                        <?php if ($is_edit) : ?>
+                            <div class="mb-3">
+                                <label class="form-label"><?php _e('Order Status:', 'siteiran-wholesale'); ?></label>
+                                <?php if ($is_converted) : ?>
+                                    <?php echo esc_html($order_status); ?>
+                                <?php else : ?>
+                                    <select name="order_status" class="form-select w-25">
+                                        <option value="pending" <?php selected($order_status, 'pending'); ?>><?php _e('Pending', 'siteiran-wholesale'); ?></option>
+                                        <option value="processing" <?php selected($order_status, 'processing'); ?>><?php _e('Processing', 'siteiran-wholesale'); ?></option>
+                                        <option value="completed" <?php selected($order_status, 'completed'); ?>><?php _e('Completed', 'siteiran-wholesale'); ?></option>
+                                    </select>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                        <div class="mb-3">
+                            <label class="form-label"><?php _e('Order Notes:', 'siteiran-wholesale'); ?></label>
+                            <?php if ($is_converted) : ?>
+                                <?php echo esc_html($order_notes); ?>
+                            <?php else : ?>
+                                <textarea name="order_notes" class="form-control" rows="3"><?php echo esc_textarea($order_notes); ?></textarea>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- جمع کل -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title d-flex align-items-center">
+                            <i class="bi bi-currency-dollar me-2 text-success"></i>
+                            <?php _e('Order Total', 'siteiran-wholesale'); ?>
+                        </h5>
+                        <p class="order-total mb-0"><?php echo wc_price(0); ?></p>
+                    </div>
+                </div>
+
                 <?php if (!$is_converted) : ?>
-                    <button type="button" id="siwo-add-row" class="btn btn-secondary"><?php _e('Add Product', 'siteiran-wholesale'); ?></button>
-                    <input type="submit" name="siwo_save_order" class="btn btn-primary" value="<?php _e('Save Order', 'siteiran-wholesale'); ?>" />
+                    <button type="submit" name="siwo_save_order" class="btn btn-primary btn-lg"><i class="bi bi-check-circle"></i> <?php _e('Save Order', 'siteiran-wholesale'); ?></button>
                 <?php endif; ?>
             </form>
         </div>
@@ -184,62 +299,71 @@ class SIWO_Admin {
         global $wpdb;
         $products = array_filter($data['products']);
         $quantities = array_filter($data['quantity']);
-        if (!empty($products)) {
-            $order_data = [
-                'post_title' => $order_id ? get_the_title($order_id) : 'Wholesale Order #' . time(),
-                'post_type' => 'siwo_order',
-                'post_status' => 'publish',
-                'meta_input' => [
-                    'siwo_status' => isset($data['order_status']) ? sanitize_text_field($data['order_status']) : get_option('siwo_order_status', 'pending'),
-                    'siwo_customer' => get_current_user_id(),
-                    'siwo_notes' => isset($data['order_notes']) ? sanitize_textarea_field($data['order_notes']) : '',
-                ],
-            ];
+        $customer_id = isset($data['siwo_customer']) ? intval($data['siwo_customer']) : 0;
     
-            $is_converted = $order_id && get_post_meta($order_id, 'siwo_converted_to_wc', true);
-            if ($is_converted) {
-                echo '<div class="error"><p>' . __('This order has been converted to WooCommerce and cannot be edited.', 'siteiran-wholesale') . '</p></div>';
-                return;
-            }
-    
-            if ($order_id) {
-                $old_status = get_post_meta($order_id, 'siwo_status', true);
-                $order_data['ID'] = $order_id;
-                wp_update_post($order_data);
-                // پاک کردن آیتم‌های قدیمی
-                $wpdb->delete($wpdb->prefix . 'siwo_order_items', ['order_id' => $order_id], ['%d']);
-            } else {
-                $order_id = wp_insert_post($order_data);
-            }
-    
-            // ذخیره محصولات توی جدول جدید
-            foreach ($products as $index => $product_id) {
-                $product = wc_get_product($product_id);
-                if ($product) {
-                    $wpdb->insert(
-                        $wpdb->prefix . 'siwo_order_items',
-                        [
-                            'order_id' => $order_id,
-                            'product_id' => $product_id,
-                            'quantity' => $quantities[$index],
-                            'price' => $product->get_price(),
-                        ],
-                        ['%d', '%d', '%d', '%f']
-                    );
-                }
-            }
-    
-            if ($order_id && isset($old_status) && $old_status !== $data['order_status']) {
-                $this->send_order_notification($order_id, 'status_updated');
-            } elseif (!$order_id) {
-                $this->send_order_notification($order_id, 'created');
-            }
-    
-            wp_redirect(admin_url('admin.php?page=siwo-add-order&edit_order=' . $order_id));
-            exit;
-        } else {
-            echo '<div class="error"><p>' . __('No products selected!', 'siteiran-wholesale') . '</p></div>';
+        if (empty($products) || !$customer_id) {
+            return false;
         }
+    
+        $is_new_order = ($order_id === 0); // بررسی اینکه سفارش جدید است یا خیر
+    
+        $order_data = [
+            'post_title' => $order_id ? get_the_title($order_id) : 'Wholesale Order #' . time(),
+            'post_type' => 'siwo_order',
+            'post_status' => 'publish',
+            'meta_input' => [
+                'siwo_status' => isset($data['order_status']) ? sanitize_text_field($data['order_status']) : get_option('siwo_order_status', 'pending'),
+                'siwo_customer' => $customer_id,
+                'siwo_notes' => isset($data['order_notes']) ? sanitize_textarea_field($data['order_notes']) : '',
+            ],
+        ];
+    
+        $is_converted = $order_id && get_post_meta($order_id, 'siwo_converted_to_wc', true);
+        if ($is_converted) {
+            echo '<div class="error"><p>' . __('This order has been converted to WooCommerce and cannot be edited.', 'siteiran-wholesale') . '</p></div>';
+            return false;
+        }
+    
+        if ($order_id) {
+            $old_status = get_post_meta($order_id, 'siwo_status', true);
+            $order_data['ID'] = $order_id;
+            wp_update_post($order_data);
+            // پاک کردن آیتم‌های قدیمی
+            $wpdb->delete($wpdb->prefix . 'siwo_order_items', ['order_id' => $order_id], ['%d']);
+        } else {
+            $order_id = wp_insert_post($order_data);
+        }
+    
+        // اگر ثبت سفارش با خطا مواجه شد
+        if (!$order_id || is_wp_error($order_id)) {
+            return false;
+        }
+    
+        // ذخیره محصولات توی جدول جدید
+        foreach ($products as $index => $product_id) {
+            $product = wc_get_product($product_id);
+            if ($product) {
+                $wpdb->insert(
+                    $wpdb->prefix . 'siwo_order_items',
+                    [
+                        'order_id' => $order_id,
+                        'product_id' => $product_id,
+                        'quantity' => $quantities[$index],
+                        'price' => $product->get_price(),
+                    ],
+                    ['%d', '%d', '%d', '%f']
+                );
+            }
+        }
+    
+        // ارسال اعلان‌ها
+        if ($is_new_order) {
+            $this->send_order_notification($order_id, 'created');
+        } elseif ($order_id && isset($old_status) && $old_status !== $data['order_status']) {
+            $this->send_order_notification($order_id, 'status_updated');
+        }
+    
+        return $order_id;
     }
 
     public function settings_page() {
@@ -268,7 +392,7 @@ class SIWO_Admin {
         $discount_percent = get_option('siwo_discount_percent', 0);
         $notes = get_post_meta($order_id, 'siwo_notes', true);
         $invoice_number = 'INV-' . str_pad($order_id, 6, '0', STR_PAD_LEFT);
-    
+
         $product_details = [];
         foreach ($items as $item) {
             $product = wc_get_product($item['product_id']);
@@ -282,7 +406,7 @@ class SIWO_Admin {
                 ];
             }
         }
-    
+
         wp_send_json_success([
             'products' => $product_details,
             'status' => $status,
@@ -296,83 +420,155 @@ class SIWO_Admin {
         ]);
     }
 
-
     public function get_product_price() {
         $product_id = intval($_POST['product_id']);
         $product = wc_get_product($product_id);
         if ($product) {
-            wp_send_json_success(['price' => wc_price($product->get_price())]);
+            wp_send_json_success([
+                'price' => wc_price($product->get_price()),
+                'raw_price' => $product->get_price()
+            ]);
         } else {
             wp_send_json_error();
         }
     }
 
+    public function handle_order_conversion() {
+        global $wpdb;
+        if (isset($_GET['page']) && $_GET['page'] === 'siwo-orders' && isset($_GET['action']) && $_GET['action'] === 'convert' && isset($_GET['order_id'])) {
+            $order_id = intval($_GET['order_id']);
+            $items = $wpdb->get_results($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}siwo_order_items WHERE order_id = %d",
+                $order_id
+            ), ARRAY_A);
+            $customer_id = get_post_meta($order_id, 'siwo_customer', true);
+            $discount_percent = get_option('siwo_discount_percent', 0);
 
-
-
-// تابع جدید برای تبدیل سفارش
-
-public function handle_order_conversion() {
-    global $wpdb;
-    if (isset($_GET['page']) && $_GET['page'] === 'siwo-orders' && isset($_GET['action']) && $_GET['action'] === 'convert' && isset($_GET['order_id'])) {
-        $order_id = intval($_GET['order_id']);
-        $items = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}siwo_order_items WHERE order_id = %d",
-            $order_id
-        ), ARRAY_A);
-        $customer_id = get_post_meta($order_id, 'siwo_customer', true);
-        $discount_percent = get_option('siwo_discount_percent', 0);
-
-        if ($items && $customer_id) {
-            $order = wc_create_order(['customer_id' => $customer_id]);
-            foreach ($items as $item) {
-                $product = wc_get_product($item['product_id']);
-                if ($product) {
-                    $order->add_product($product, $item['quantity']);
+            if ($items && $customer_id) {
+                $order = wc_create_order(['customer_id' => $customer_id]);
+                foreach ($items as $item) {
+                    $product = wc_get_product($item['product_id']);
+                    if ($product) {
+                        $order->add_product($product, $item['quantity']);
+                    }
                 }
-            }
-            if ($discount_percent > 0) {
-                $subtotal = $order->get_subtotal();
-                $discount_amount = $subtotal * ($discount_percent / 100);
-                $order->set_discount_total($discount_amount);
-                $order->set_total($subtotal - $discount_amount);
-            }
-            $siwo_status = get_post_meta($order_id, 'siwo_status', true);
-            $wc_status = $siwo_status === 'completed' ? 'completed' : ($siwo_status === 'processing' ? 'processing' : 'pending');
-            $order->set_status($wc_status);
-            $order->save();
+                if ($discount_percent > 0) {
+                    $subtotal = $order->get_subtotal();
+                    $discount_amount = $subtotal * ($discount_percent / 100);
+                    $order->set_discount_total($discount_amount);
+                    $order->set_total($subtotal - $discount_amount);
+                }
+                $siwo_status = get_post_meta($order_id, 'siwo_status', true);
+                $wc_status = $siwo_status === 'completed' ? 'completed' : ($siwo_status === 'processing' ? 'processing' : 'pending');
+                $order->set_status($wc_status);
+                $order->save();
 
-            update_post_meta($order_id, 'siwo_converted_to_wc', $order->get_id());
-            $this->send_order_notification($order_id, 'converted');
+                update_post_meta($order_id, 'siwo_converted_to_wc', $order->get_id());
+                $this->send_order_notification($order_id, 'converted');
 
-            wp_redirect(admin_url('admin.php?page=siwo-orders&converted=1'));
-            exit;
+                wp_redirect(admin_url('admin.php?page=siwo-orders&converted=1'));
+                exit;
+            }
         }
     }
-}
 
-
-//ایجاد تابع گزارشات 
-
-public function enqueue_report_scripts($hook) {
-    // مطمئن بشیم فقط توی صفحه گزارشات لود بشه
-    if ($hook === 'wholesale-orders_page_siwo-reports') {
-        wp_enqueue_script('chart-js', 'https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js', [], '4.4.2', true);
-        wp_enqueue_script('siwo-reports', SIWO_URL . 'assets/js/reports.js', ['chart-js'], '1.0.1', true);
-        wp_localize_script('siwo-reports', 'siwo_report_data', [
-            'sales_by_date' => $this->get_sales_by_date(), // داده‌ها رو جداگانه می‌فرستیم
-            'currency' => get_woocommerce_currency(),
-        ]);
+    public function enqueue_report_scripts($hook) {
+        if ($hook === 'wholesale-orders_page_siwo-reports') {
+            wp_enqueue_script('chart-js', 'https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js', [], '4.4.2', true);
+            wp_enqueue_script('siwo-reports', SIWO_URL . 'assets/js/reports.js', ['chart-js'], '1.0.1', true);
+            wp_localize_script('siwo-reports', 'siwo_report_data', [
+                'sales_by_date' => $this->get_sales_by_date(),
+                'currency' => get_woocommerce_currency(),
+            ]);
+        }
     }
-}
 
-//برای گزارشات + کش کردن
-private function get_sales_by_date() {
-    global $wpdb;
-    $cache_key = 'siwo_sales_by_date_' . md5(serialize($_GET));
-    $sales_by_date = wp_cache_get($cache_key, 'siwo');
+    private function get_sales_by_date() {
+        global $wpdb;
+        $cache_key = 'siwo_sales_by_date_' . md5(serialize($_GET));
+        $sales_by_date = wp_cache_get($cache_key, 'siwo');
 
-    if (false === $sales_by_date) {
+        if (false === $sales_by_date) {
+            $filter_period = isset($_GET['filter_period']) ? sanitize_text_field($_GET['filter_period']) : 'all';
+            $filter_date_start = isset($_GET['filter_date_start']) ? sanitize_text_field($_GET['filter_date_start']) : '';
+            $filter_date_end = isset($_GET['filter_date_end']) ? sanitize_text_field($_GET['filter_date_end']) : '';
+
+            $args = [
+                'post_type' => 'siwo_order',
+                'posts_per_page' => -1,
+                'meta_query' => [['key' => 'siwo_converted_to_wc', 'compare' => 'NOT EXISTS']],
+            ];
+
+            if ($filter_period !== 'all' || $filter_date_start || $filter_date_end) {
+                $args['date_query'] = [];
+                if ($filter_period === 'today') {
+                    $args['date_query']['after'] = date('Y-m-d', strtotime('today'));
+                } elseif ($filter_period === 'week') {
+                    $args['date_query']['after'] = date('Y-m-d', strtotime('-7 days'));
+                } elseif ($filter_period === 'month') {
+                    $args['date_query']['after'] = date('Y-m-d', strtotime('-30 days'));
+                } elseif ($filter_period === 'custom' && $filter_date_start) {
+                    $args['date_query']['after'] = $filter_date_start;
+                    if ($filter_date_end) {
+                        $args['date_query']['before'] = $filter_date_end;
+                    }
+                }
+                $args['date_query']['inclusive'] = true;
+            }
+
+            $orders = get_posts($args);
+            $sales_by_date = [];
+
+            if ($orders) {
+                foreach ($orders as $order) {
+                    $order_date = get_the_date('Y-m-d', $order->ID);
+                    $items = $wpdb->get_results($wpdb->prepare(
+                        "SELECT * FROM {$wpdb->prefix}siwo_order_items WHERE order_id = %d",
+                        $order->ID
+                    ), ARRAY_A);
+
+                    $old_products = get_post_meta($order->ID, 'siwo_products', true);
+                    if ($old_products && is_array($old_products) && empty($items)) {
+                        foreach ($old_products as $product_id => $quantity) {
+                            $product = wc_get_product($product_id);
+                            if ($product) {
+                                $wpdb->insert(
+                                    $wpdb->prefix . 'siwo_order_items',
+                                    [
+                                        'order_id' => $order->ID,
+                                        'product_id' => $product_id,
+                                        'quantity' => $quantity,
+                                        'price' => $product->get_price(),
+                                    ],
+                                    ['%d', '%d', '%d', '%f']
+                                );
+                            }
+                        }
+                        delete_post_meta($order->ID, 'siwo_products');
+                        $items = $wpdb->get_results($wpdb->prepare(
+                            "SELECT * FROM {$wpdb->prefix}siwo_order_items WHERE order_id = %d",
+                            $order->ID
+                        ), ARRAY_A);
+                    }
+
+                    if ($items && is_array($items)) {
+                        $sales_by_date[$order_date] = ($sales_by_date[$order_date] ?? 0);
+                        foreach ($items as $item) {
+                            $sales_by_date[$order_date] += $item['price'] * $item['quantity'];
+                        }
+                    }
+                }
+            }
+
+            wp_cache_set($cache_key, $sales_by_date, 'siwo', 3600);
+        }
+
+        return is_array($sales_by_date) ? $sales_by_date : [];
+    }
+
+    public function reports_page() {
+        global $wpdb;
+
         $filter_period = isset($_GET['filter_period']) ? sanitize_text_field($_GET['filter_period']) : 'all';
         $filter_date_start = isset($_GET['filter_date_start']) ? sanitize_text_field($_GET['filter_date_start']) : '';
         $filter_date_end = isset($_GET['filter_date_end']) ? sanitize_text_field($_GET['filter_date_end']) : '';
@@ -401,340 +597,255 @@ private function get_sales_by_date() {
         }
 
         $orders = get_posts($args);
+        $total_orders = count($orders);
+        $total_sales = 0;
+        $products_sold = [];
+        $customers = [];
         $sales_by_date = [];
 
-        if ($orders) {
-            foreach ($orders as $order) {
-                $order_date = get_the_date('Y-m-d', $order->ID);
-                $items = $wpdb->get_results($wpdb->prepare(
-                    "SELECT * FROM {$wpdb->prefix}siwo_order_items WHERE order_id = %d",
-                    $order->ID
-                ), ARRAY_A);
-
-                // چک کردن داده‌های قدیمی توی متا
-                $old_products = get_post_meta($order->ID, 'siwo_products', true);
-                if ($old_products && is_array($old_products) && empty($items)) {
-                    // مهاجرت داده‌های قدیمی به جدول جدید
-                    foreach ($old_products as $product_id => $quantity) {
-                        $product = wc_get_product($product_id);
-                        if ($product) {
-                            $wpdb->insert(
-                                $wpdb->prefix . 'siwo_order_items',
-                                [
-                                    'order_id' => $order->ID,
-                                    'product_id' => $product_id,
-                                    'quantity' => $quantity,
-                                    'price' => $product->get_price(),
-                                ],
-                                ['%d', '%d', '%d', '%f']
-                            );
-                        }
-                    }
-                    // پاک کردن متا بعد از مهاجرت
-                    delete_post_meta($order->ID, 'siwo_products');
-                    // دوباره محصولات رو از جدول جدید بخونیم
-                    $items = $wpdb->get_results($wpdb->prepare(
-                        "SELECT * FROM {$wpdb->prefix}siwo_order_items WHERE order_id = %d",
-                        $order->ID
-                    ), ARRAY_A);
-                }
-
-                if ($items && is_array($items)) {
-                    $sales_by_date[$order_date] = ($sales_by_date[$order_date] ?? 0);
-                    foreach ($items as $item) {
-                        $sales_by_date[$order_date] += $item['price'] * $item['quantity'];
-                    }
-                }
-            }
-        }
-
-        wp_cache_set($cache_key, $sales_by_date, 'siwo', 3600); // کش برای 1 ساعت
-    }
-
-    // مطمئن بشیم که همیشه آرایه برگردونده می‌شه
-    return is_array($sales_by_date) ? $sales_by_date : [];
-}
-
-public function reports_page() {
-    global $wpdb;
-
-    $filter_period = isset($_GET['filter_period']) ? sanitize_text_field($_GET['filter_period']) : 'all';
-    $filter_date_start = isset($_GET['filter_date_start']) ? sanitize_text_field($_GET['filter_date_start']) : '';
-    $filter_date_end = isset($_GET['filter_date_end']) ? sanitize_text_field($_GET['filter_date_end']) : '';
-
-    $args = [
-        'post_type' => 'siwo_order',
-        'posts_per_page' => -1,
-        'meta_query' => [['key' => 'siwo_converted_to_wc', 'compare' => 'NOT EXISTS']],
-    ];
-
-    if ($filter_period !== 'all' || $filter_date_start || $filter_date_end) {
-        $args['date_query'] = [];
-        if ($filter_period === 'today') {
-            $args['date_query']['after'] = date('Y-m-d', strtotime('today'));
-        } elseif ($filter_period === 'week') {
-            $args['date_query']['after'] = date('Y-m-d', strtotime('-7 days'));
-        } elseif ($filter_period === 'month') {
-            $args['date_query']['after'] = date('Y-m-d', strtotime('-30 days'));
-        } elseif ($filter_period === 'custom' && $filter_date_start) {
-            $args['date_query']['after'] = $filter_date_start;
-            if ($filter_date_end) {
-                $args['date_query']['before'] = $filter_date_end;
-            }
-        }
-        $args['date_query']['inclusive'] = true;
-    }
-
-    $orders = get_posts($args);
-    $total_orders = count($orders);
-    $total_sales = 0;
-    $products_sold = [];
-    $customers = [];
-    $sales_by_date = [];
-
-    foreach ($orders as $order) {
-        $order_date = get_the_date('Y-m-d', $order->ID);
-        $customer_id = get_post_meta($order->ID, 'siwo_customer', true);
-        $items = $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}siwo_order_items WHERE order_id = %d",
-            $order->ID
-        ), ARRAY_A);
-
-        $old_products = get_post_meta($order->ID, 'siwo_products', true);
-        if ($old_products && is_array($old_products) && empty($items)) {
-            foreach ($old_products as $product_id => $quantity) {
-                $product = wc_get_product($product_id);
-                if ($product) {
-                    $wpdb->insert(
-                        $wpdb->prefix . 'siwo_order_items',
-                        [
-                            'order_id' => $order->ID,
-                            'product_id' => $product_id,
-                            'quantity' => $quantity,
-                            'price' => $product->get_price(),
-                        ],
-                        ['%d', '%d', '%d', '%f']
-                    );
-                }
-            }
-            delete_post_meta($order->ID, 'siwo_products');
+        foreach ($orders as $order) {
+            $order_date = get_the_date('Y-m-d', $order->ID);
+            $customer_id = get_post_meta($order->ID, 'siwo_customer', true);
             $items = $wpdb->get_results($wpdb->prepare(
                 "SELECT * FROM {$wpdb->prefix}siwo_order_items WHERE order_id = %d",
                 $order->ID
             ), ARRAY_A);
-        }
 
-        $customers[$customer_id] = true;
-
-        if ($items && is_array($items)) {
-            $order_total = 0;
-            foreach ($items as $item) {
-                $product = wc_get_product($item['product_id']);
-                if ($product) {
-                    $total_sales += $item['price'] * $item['quantity'];
-                    $order_total += $item['price'] * $item['quantity'];
-                    $products_sold[$product->get_name()] = ($products_sold[$product->get_name()] ?? 0) + $item['quantity'];
+            $old_products = get_post_meta($order->ID, 'siwo_products', true);
+            if ($old_products && is_array($old_products) && empty($items)) {
+                foreach ($old_products as $product_id => $quantity) {
+                    $product = wc_get_product($product_id);
+                    if ($product) {
+                        $wpdb->insert(
+                            $wpdb->prefix . 'siwo_order_items',
+                            [
+                                'order_id' => $order->ID,
+                                'product_id' => $product_id,
+                                'quantity' => $quantity,
+                                'price' => $product->get_price(),
+                            ],
+                            ['%d', '%d', '%d', '%f']
+                        );
+                    }
                 }
+                delete_post_meta($order->ID, 'siwo_products');
+                $items = $wpdb->get_results($wpdb->prepare(
+                    "SELECT * FROM {$wpdb->prefix}siwo_order_items WHERE order_id = %d",
+                    $order->ID
+                ), ARRAY_A);
             }
-            $sales_by_date[$order_date] = ($sales_by_date[$order_date] ?? 0) + $order_total;
+
+            $customers[$customer_id] = true;
+
+            if ($items && is_array($items)) {
+                $order_total = 0;
+                foreach ($items as $item) {
+                    $product = wc_get_product($item['product_id']);
+                    if ($product) {
+                        $total_sales += $item['price'] * $item['quantity'];
+                        $order_total += $item['price'] * $item['quantity'];
+                        $products_sold[$product->get_name()] = ($products_sold[$product->get_name()] ?? 0) + $item['quantity'];
+                    }
+                }
+                $sales_by_date[$order_date] = ($sales_by_date[$order_date] ?? 0) + $order_total;
+            }
         }
-    }
 
-    $discount_percent = get_option('siwo_discount_percent', 0);
-    $discounted_sales = $total_sales * (1 - $discount_percent / 100);
-    $total_customers = count($customers);
-    $average_order = $total_orders > 0 ? $total_sales / $total_orders : 0;
+        $discount_percent = get_option('siwo_discount_percent', 0);
+        $discounted_sales = $total_sales * (1 - $discount_percent / 100);
+        $total_customers = count($customers);
+        $average_order = $total_orders > 0 ? $total_sales / $total_orders : 0;
 
-    ?>
-    <div class="wrap siwo-wrap">
-        <h1 class="mb-4"><?php _e('Wholesale Reports', 'siteiran-wholesale'); ?></h1>
+        ?>
+        <div class="wrap siwo-wrap">
+            <h1 class="mb-4"><?php _e('Wholesale Reports', 'siteiran-wholesale'); ?></h1>
 
-        <!-- Filter Form -->
-        <form method="get" class="mb-4">
-            <input type="hidden" name="page" value="siwo-reports">
-            <div class="row g-3 align-items-end">
+            <!-- Filter Form -->
+            <form method="get" class="mb-4">
+                <input type="hidden" name="page" value="siwo-reports">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label"><?php _e('Period', 'siteiran-wholesale'); ?></label>
+                        <select name="filter_period" class="form-select" id="filter-period">
+                            <option value="all" <?php selected($filter_period, 'all'); ?>><?php _e('All Time', 'siteiran-wholesale'); ?></option>
+                            <option value="today" <?php selected($filter_period, 'today'); ?>><?php _e('Today', 'siteiran-wholesale'); ?></option>
+                            <option value="week" <?php selected($filter_period, 'week'); ?>><?php _e('Last 7 Days', 'siteiran-wholesale'); ?></option>
+                            <option value="month" <?php selected($filter_period, 'month'); ?>><?php _e('Last 30 Days', 'siteiran-wholesale'); ?></option>
+                            <option value="custom" <?php selected($filter_period, 'custom'); ?>><?php _e('Custom Range', 'siteiran-wholesale'); ?></option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 custom-date" <?php echo $filter_period !== 'custom' ? 'style="display:none;"' : ''; ?>>
+                        <label class="form-label"><?php _e('Start Date', 'siteiran-wholesale'); ?></label>
+                        <input type="date" name="filter_date_start" class="form-control" value="<?php echo esc_attr($filter_date_start); ?>">
+                    </div>
+                    <div class="col-md-3 custom-date" <?php echo $filter_period !== 'custom' ? 'style="display:none;"' : ''; ?>>
+                        <label class="form-label"><?php _e('End Date', 'siteiran-wholesale'); ?></label>
+                        <input type="date" name="filter_date_end" class="form-control" value="<?php echo esc_attr($filter_date_end); ?>">
+                    </div>
+                    <div class="col-md-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary w-100"><?php _e('Apply', 'siteiran-wholesale'); ?></button>
+                        <a href="<?php echo admin_url('admin.php?page=siwo-reports'); ?>" class="btn btn-secondary w-100"><?php _e('Clear', 'siteiran-wholesale'); ?></a>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Stats -->
+            <div class="row g-3 mb-4">
                 <div class="col-md-3">
-                    <label class="form-label"><?php _e('Period', 'siteiran-wholesale'); ?></label>
-                    <select name="filter_period" class="form-select" id="filter-period">
-                        <option value="all" <?php selected($filter_period, 'all'); ?>><?php _e('All Time', 'siteiran-wholesale'); ?></option>
-                        <option value="today" <?php selected($filter_period, 'today'); ?>><?php _e('Today', 'siteiran-wholesale'); ?></option>
-                        <option value="week" <?php selected($filter_period, 'week'); ?>><?php _e('Last 7 Days', 'siteiran-wholesale'); ?></option>
-                        <option value="month" <?php selected($filter_period, 'month'); ?>><?php _e('Last 30 Days', 'siteiran-wholesale'); ?></option>
-                        <option value="custom" <?php selected($filter_period, 'custom'); ?>><?php _e('Custom Range', 'siteiran-wholesale'); ?></option>
-                    </select>
+                    <div class="card shadow-sm">
+                        <div class="card-body d-flex align-items-center">
+                            <i class="bi bi-cart4 text-primary me-3" style="font-size: 2rem;"></i>
+                            <div>
+                                <h5 class="card-title"><?php _e('Total Orders', 'siteiran-wholesale'); ?></h5>
+                                <p class="card-text"><?php echo esc_html($total_orders); ?></p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-3 custom-date" <?php echo $filter_period !== 'custom' ? 'style="display:none;"' : ''; ?>>
-                    <label class="form-label"><?php _e('Start Date', 'siteiran-wholesale'); ?></label>
-                    <input type="date" name="filter_date_start" class="form-control" value="<?php echo esc_attr($filter_date_start); ?>">
+                <div class="col-md-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body d-flex align-items-center">
+                            <i class="bi bi-currency-dollar text-success me-3" style="font-size: 2rem;"></i>
+                            <div>
+                                <h5 class="card-title"><?php _e('Total Sales', 'siteiran-wholesale'); ?></h5>
+                                <p class="card-text"><?php echo wc_price($total_sales); ?></p>
+                                <?php if ($discount_percent > 0) : ?>
+                                    <p class="card-text text-muted small"><?php echo wc_price($discounted_sales); ?> (<?php echo esc_html($discount_percent); ?>% off)</p>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-3 custom-date" <?php echo $filter_period !== 'custom' ? 'style="display:none;"' : ''; ?>>
-                    <label class="form-label"><?php _e('End Date', 'siteiran-wholesale'); ?></label>
-                    <input type="date" name="filter_date_end" class="form-control" value="<?php echo esc_attr($filter_date_end); ?>">
+                <div class="col-md-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body d-flex align-items-center">
+                            <i class="bi bi-people text-info me-3" style="font-size: 2rem;"></i>
+                            <div>
+                                <h5 class="card-title"><?php _e('Total Customers', 'siteiran-wholesale'); ?></h5>
+                                <p class="card-text"><?php echo esc_html($total_customers); ?></p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-3 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary w-100"><?php _e('Apply', 'siteiran-wholesale'); ?></button>
-                    <a href="<?php echo admin_url('admin.php?page=siwo-reports'); ?>" class="btn btn-secondary w-100"><?php _e('Clear', 'siteiran-wholesale'); ?></a>
-                </div>
-            </div>
-        </form>
-
-        <!-- Stats -->
-        <div class="row g-3 mb-4">
-            <div class="col-md-3">
-                <div class="card shadow-sm">
-                    <div class="card-body d-flex align-items-center">
-                        <i class="bi bi-cart4 text-primary me-3" style="font-size: 2rem;"></i>
-                        <div>
-                            <h5 class="card-title"><?php _e('Total Orders', 'siteiran-wholesale'); ?></h5>
-                            <p class="card-text"><?php echo esc_html($total_orders); ?></p>
+                <div class="col-md-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body d-flex align-items-center">
+                            <i class="bi bi-bar-chart text-warning me-3" style="font-size: 2rem;"></i>
+                            <div>
+                                <h5 class="card-title"><?php _e('Average Order Value', 'siteiran-wholesale'); ?></h5>
+                                <p class="card-text"><?php echo wc_price($average_order); ?></p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card shadow-sm">
-                    <div class="card-body d-flex align-items-center">
-                        <i class="bi bi-currency-dollar text-success me-3" style="font-size: 2rem;"></i>
-                        <div>
-                            <h5 class="card-title"><?php _e('Total Sales', 'siteiran-wholesale'); ?></h5>
-                            <p class="card-text"><?php echo wc_price($total_sales); ?></p>
-                            <?php if ($discount_percent > 0) : ?>
-                                <p class="card-text text-muted small"><?php echo wc_price($discounted_sales); ?> (<?php echo esc_html($discount_percent); ?>% off)</p>
-                            <?php endif; ?>
-                        </div>
-                    </div>
+
+            <!-- Chart -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title"><?php _e('Sales Trend', 'siteiran-wholesale'); ?></h5>
+                    <canvas id="salesChart" height="100"></canvas>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card shadow-sm">
-                    <div class="card-body d-flex align-items-center">
-                        <i class="bi bi-people text-info me-3" style="font-size: 2rem;"></i>
-                        <div>
-                            <h5 class="card-title"><?php _e('Total Customers', 'siteiran-wholesale'); ?></h5>
-                            <p class="card-text"><?php echo esc_html($total_customers); ?></p>
-                        </div>
-                    </div>
+
+            <!-- Products Sold -->
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title"><?php _e('Products Sold', 'siteiran-wholesale'); ?></h5>
+                    <ul class="list-group">
+                        <?php if (!empty($products_sold)) : ?>
+                            <?php foreach ($products_sold as $name => $qty) : ?>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <?php echo esc_html($name); ?>
+                                    <span class="badge bg-primary rounded-pill"><?php echo esc_html($qty); ?></span>
+                                </li>
+                            <?php endforeach; ?>
+                        <?php else : ?>
+                            <li class="list-group-item"><?php _e('No products sold in this period.', 'siteiran-wholesale'); ?></li>
+                        <?php endif; ?>
+                    </ul>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card shadow-sm">
-                    <div class="card-body d-flex align-items-center">
-                        <i class="bi bi-bar-chart text-warning me-3" style="font-size: 2rem;"></i>
-                        <div>
-                            <h5 class="card-title"><?php _e('Average Order Value', 'siteiran-wholesale'); ?></h5>
-                            <p class="card-text"><?php echo wc_price($average_order); ?></p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Chart -->
-        <div class="card shadow-sm mb-4">
-            <div class="card-body">
-                <h5 class="card-title"><?php _e('Sales Trend', 'siteiran-wholesale'); ?></h5>
-                <canvas id="salesChart" height="100"></canvas>
-            </div>
-        </div>
-
-        <!-- Products Sold -->
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title"><?php _e('Products Sold', 'siteiran-wholesale'); ?></h5>
-                <ul class="list-group">
-                    <?php if (!empty($products_sold)) : ?>
-                        <?php foreach ($products_sold as $name => $qty) : ?>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <?php echo esc_html($name); ?>
-                                <span class="badge bg-primary rounded-pill"><?php echo esc_html($qty); ?></span>
-                            </li>
-                        <?php endforeach; ?>
-                    <?php else : ?>
-                        <li class="list-group-item"><?php _e('No products sold in this period.', 'siteiran-wholesale'); ?></li>
-                    <?php endif; ?>
-                </ul>
-            </div>
-        </div>
-
-        <!-- استایل و اسکریپت -->
-        <style>
-            .siwo-wrap .card {
-                border: none;
-                transition: transform 0.2s;
-            }
-            .siwo-wrap .card:hover {
-                transform: translateY(-5px);
-            }
-            .siwo-wrap .list-group-item {
-                font-size: 0.9rem;
-            }
-            @media (max-width: 768px) {
-                .siwo-wrap .card-body {
-                    font-size: 0.8rem;
+            <!-- استایل و اسکریپت -->
+            <style>
+                .siwo-wrap .card {
+                    border: none;
+                    transition: transform 0.2s;
                 }
-            }
-        </style>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.min.css"></script>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <script>
-            document.getElementById('filter-period').addEventListener('change', function() {
-                var customFields = document.querySelectorAll('.custom-date');
-                if (this.value === 'custom') {
-                    customFields.forEach(function(field) { field.style.display = 'block'; });
-                } else {
-                    customFields.forEach(function(field) { field.style.display = 'none'; });
+                .siwo-wrap .card:hover {
+                    transform: translateY(-5px);
                 }
-            });
+                .siwo-wrap .list-group-item {
+                    font-size: 0.9rem;
+                }
+                @media (max-width: 768px) {
+                    .siwo-wrap .card-body {
+                        font-size: 0.8rem;
+                    }
+                }
+            </style>
+            <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.min.css"></script> -->
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+            <script>
+                document.getElementById('filter-period').addEventListener('change', function() {
+                    var customFields = document.querySelectorAll('.custom-date');
+                    if (this.value === 'custom') {
+                        customFields.forEach(function(field) { field.style.display = 'block'; });
+                    } else {
+                        customFields.forEach(function(field) { field.style.display = 'none'; });
+                    }
+                });
 
-            const ctx = document.getElementById('salesChart').getContext('2d');
-            const salesData = {
-                labels: [<?php echo "'" . implode("','", array_keys($sales_by_date)) . "'"; ?>],
-                datasets: [{
-                    label: '<?php _e('Sales', 'siteiran-wholesale'); ?>',
-                    data: [<?php echo implode(',', array_values($sales_by_date)); ?>],
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1,
-                    fill: true,
-                }]
-            };
-            new Chart(ctx, {
-                type: 'line',
-                data: salesData,
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return '<?php echo get_woocommerce_currency_symbol(); ?>' + value;
+                const ctx = document.getElementById('salesChart').getContext('2d');
+                const salesData = {
+                    labels: [<?php echo "'" . implode("','", array_keys($sales_by_date)) . "'"; ?>],
+                    datasets: [{
+                        label: '<?php _e('Sales', 'siteiran-wholesale'); ?>',
+                        data: [<?php echo implode(',', array_values($sales_by_date)); ?>],
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1,
+                        fill: true,
+                    }]
+                };
+                new Chart(ctx, {
+                    type: 'line',
+                    data: salesData,
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '<?php echo get_woocommerce_currency_symbol(); ?>' + value;
+                                    }
                                 }
                             }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'top',
                         },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return context.dataset.label + ': <?php echo get_woocommerce_currency_symbol(); ?>' + context.parsed.y;
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': <?php echo get_woocommerce_currency_symbol(); ?>' + context.parsed.y;
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            });
-        </script>
-    </div>
-    <?php
-}
+                });
+            </script>
+        </div>
+        <?php
+    }
 
-
-    //اضافه کردن اعلانات
     private function send_order_notification($order_id, $event = 'created') {
+        error_log("Sending notification for order #$order_id, event: $event"); // اضافه کردن لاگ
+    
         global $wpdb;
         $items = $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}siwo_order_items WHERE order_id = %d",
@@ -759,12 +870,15 @@ public function reports_page() {
         $sms_provider = get_option('siwo_sms_provider', 'sms_ir');
         $sms_params_config = get_option('siwo_sms_params', ['ORDER_ID', 'STATUS', 'PRODUCTS', 'NOTES', 'FULLNAME']);
     
-        if (!$products || !$customer) return;
-    
+        if (!$products || !$customer) {
+            error_log("Notification aborted: No products or customer found for order #$order_id");
+            return;
+        }
+
         $subject = $event === 'created' ? sprintf(__('New Wholesale Order #%s', 'siteiran-wholesale'), $order_id) :
                    ($event === 'status_updated' ? sprintf(__('Order #%s Status Updated', 'siteiran-wholesale'), $order_id) :
                    sprintf(__('Order #%s Converted to WooCommerce', 'siteiran-wholesale'), $order_id));
-    
+
         $message = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">';
         $message .= $logo_url ? '<img src="' . esc_url($logo_url) . '" alt="Logo" style="max-width: 150px; display: block; margin-bottom: 20px;">' : '';
         $message .= '<h2 style="color: #007bff;">' . esc_html($email_header) . '</h2>';
@@ -786,9 +900,9 @@ public function reports_page() {
         }
         $message .= '<p style="color: #777; font-size: 0.9em; margin-top: 20px;">' . __('Sent from', 'siteiran-wholesale') . ' ' . get_bloginfo('name') . '</p>';
         $message .= '</body></html>';
-    
+
         $headers = ['Content-Type: text/html; charset=UTF-8'];
-    
+
         $sms_params = [];
         foreach ($sms_params_config as $param) {
             switch ($param) {
@@ -813,12 +927,14 @@ public function reports_page() {
                         $sms_params[] = ['name' => 'NOTES', 'value' => $notes];
                     }
                     break;
-                case 'FULLNAME':
-                    $sms_params[] = ['name' => 'FULLNAME', 'value' => $customer->first_name . ' ' . $customer->last_name];
-                    break;
+                    case 'FULLNAME':
+                        case 'NAME':
+                            $full_name = trim($customer->first_name . ' ' . $customer->last_name);
+                            $sms_params[] = ['name' => $param, 'value' => $full_name ?: 'مشتری گرامی'];
+                            break;         
             }
         }
-    
+
         if ($notification_method === 'email' || $notification_method === 'both') {
             if ($notify_customer && $customer->user_email) {
                 wp_mail($customer->user_email, $subject, $message, $headers);
@@ -828,26 +944,27 @@ public function reports_page() {
                 wp_mail($admin_email, $subject, $message, $headers);
             }
         }
-    
+
         if ($notification_method === 'sms' || $notification_method === 'both') {
             $phone = $this->get_customer_phone($customer_id);
             if ($notify_customer && $phone) {
                 $this->send_sms_notification($phone, $sms_params, $sms_provider);
             }
-            if ($notify_admin) {
-                $admin_phone = get_option('admin_phone', '');
-                if ($admin_phone) {
-                    $this->send_sms_notification($admin_phone, $sms_params, $sms_provider);
-                }
-            }
+            // بخش ارسال به ادمین حذف شده
+            // if ($notify_admin) { 
+            //     $admin_phone = get_option('admin_phone', '');
+            //     if ($admin_phone) {
+            //         $this->send_sms_notification($admin_phone, $sms_params, $sms_provider);
+            //     }
+            // }
         }
     }
-    
+
     private function get_customer_phone($customer_id) {
         $phone = get_user_meta($customer_id, 'billing_phone', true);
         return $phone ?: '';
     }
-    
+
     private function send_sms_notification($phone, $params, $provider) {
         switch ($provider) {
             case 'sms_ir':
@@ -857,7 +974,7 @@ public function reports_page() {
                     error_log("SMS.ir: Missing API key, template ID, or phone number.");
                     return;
                 }
-    
+
                 $curl = curl_init();
                 curl_setopt_array($curl, [
                     CURLOPT_URL => 'https://api.sms.ir/v1/send/verify',
@@ -882,19 +999,32 @@ public function reports_page() {
                 $response = curl_exec($curl);
                 $error = curl_error($curl);
                 curl_close($curl);
-    
+                error_log("Sending SMS to: $phone");
                 if ($error) {
                     error_log("SMS.ir Error: $error");
                 } else {
                     error_log("SMS.ir Response: $response");
                 }
                 break;
-    
+
             default:
                 error_log("SMS provider '$provider' not supported.");
                 break;
         }
     }
 
+    public function siwo_add_meta_indexes() {
+        global $wpdb;
     
+        // بررسی اینکه آیا ایندکس قبلاً وجود داره یا نه
+        $index_exists = $wpdb->get_results("SHOW INDEX FROM {$wpdb->postmeta} WHERE Key_name = 'meta_key_value'");
+        if (empty($index_exists)) {
+            $wpdb->query("ALTER TABLE {$wpdb->postmeta} ADD INDEX meta_key_value (meta_key(125), meta_value(125))");
+        }
+    }
+
 }
+
+//اضافه کردن ایندکس به متا دیتا
+register_activation_hook(__FILE__, 'siwo_add_meta_indexes');
+
