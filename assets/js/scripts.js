@@ -1,21 +1,59 @@
 jQuery(document).ready(function($) {
-    // بررسی وجود siwo_data
-    if (typeof siwo_data === 'undefined') {
-        console.log('siwo_data is not defined. Skipping initialization.');
-        return;
-    }
+    // فعال‌سازی Select2 برای انتخاب مشتری
+    $('.siwo-select2').select2({
+        placeholder: siwo_translations.select_customer,
+        allowClear: true
+    });
 
-    // Initialize Select2
-    function initSelect2($element) {
-        $element.select2({
+    // فعال‌سازی Select2 برای جستجوی محصولات
+    $('.siwo-select2-product').select2({
+        ajax: {
+            url: siwo_ajax.ajax_url,
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return {
+                    action: 'siwo_search_products',
+                    term: params.term || '',
+                    selected_id: $(this).val() || ''
+                };
+            },
+            processResults: function(data) {
+                return {
+                    results: data
+                };
+            },
+            cache: true
+        },
+        placeholder: siwo_translations.search_product,
+        minimumInputLength: 1,
+        allowClear: true
+    });
+
+    // افزودن محصول جدید در فرم سفارش
+    $('#siwo-add-product').on('click', function(e) {
+        e.preventDefault();
+        var productRow = `
+            <div class="siwo-product-row mb-3 d-flex align-items-center">
+                <select name="siwo_products[]" class="form-select siwo-select2-product w-50 me-2">
+                    <option value="">${siwo_translations.search_product}</option>
+                </select>
+                <input type="number" name="siwo_products_quantity[]" class="form-control w-25 me-2" value="1" min="1" />
+                <button type="button" class="btn btn-danger btn-sm siwo-remove-product"><i class="bi bi-trash"></i></button>
+            </div>
+        `;
+        $('#siwo-products').append(productRow);
+
+        // فعال‌سازی Select2 برای ردیف جدید
+        $('#siwo-products .siwo-select2-product').last().select2({
             ajax: {
                 url: siwo_ajax.ajax_url,
                 dataType: 'json',
                 delay: 250,
                 data: function(params) {
                     return {
-                        term: params.term,
-                        action: 'siwo_search_products'
+                        action: 'siwo_search_products',
+                        term: params.term || ''
                     };
                 },
                 processResults: function(data) {
@@ -25,96 +63,78 @@ jQuery(document).ready(function($) {
                 },
                 cache: true
             },
-            placeholder: siwo_data.search_product_placeholder,
-            minimumInputLength: 2,
-            width: '100%'
-        }).on('select2:select', function(e) {
-            var productId = e.params.data.id;
-            $.ajax({
-                url: siwo_ajax.ajax_url,
-                method: 'POST',
-                data: {
-                    action: 'siwo_get_product_price',
-                    product_id: productId
-                },
-                success: function(response) {
-                    if (response.success) {
-                        var $row = $(e.target).closest('tr');
-                        $row.find('.product-price').html(response.data.price);
-                        $row.find('select').data('price', response.data.raw_price);
-                        updateSubtotal($row);
-                        updateOrderTotal();
-                    }
-                }
-            });
+            placeholder: siwo_translations.search_product,
+            minimumInputLength: 1,
+            allowClear: true
         });
-    }
-
-    // مقداردهی اولیه Select2 برای همه ردیف‌ها
-    $('.siwo-product-search').each(function() {
-        initSelect2($(this));
     });
 
-    // اضافه کردن ردیف جدید
-    $('#siwo-add-row').on('click', function() {
-        var row = '<tr class="order-item-row">' +
-            '<td><select class="siwo-product-search form-select" name="products[]"><option value="">' + siwo_data.search_product_placeholder + '</option></select></td>' +
-            '<td><input type="number" class="form-control quantity-input" name="quantity[]" min="1" value="1" /></td>' +
-            '<td class="product-price">-</td>' +
-            '<td class="subtotal">' + siwo_data.currency_symbol + '0.00</td>' +
-            '<td><button type="button" class="btn btn-danger btn-sm siwo-remove-row"><i class="bi bi-trash"></i> ' + siwo_data.remove_label + '</button></td>' +
-            '</tr>';
-        $('#siwo-order-items').append(row);
-        initSelect2($('#siwo-order-items tr:last .siwo-product-search'));
-        updateOrderTotal();
+    // حذف ردیف محصول
+    $(document).on('click', '.siwo-remove-product', function(e) {
+        e.preventDefault();
+        $(this).closest('.siwo-product-row').remove();
     });
 
-    // حذف ردیف
-    $(document).on('click', '.siwo-remove-row', function() {
-        if ($('#siwo-order-items tr').length > 1) {
-            $(this).closest('tr').remove();
-            updateOrderTotal();
+    // آپلود لوگو
+    $('#siwo_upload_logo').on('click', function(e) {
+        e.preventDefault();
+        var frame;
+        if (frame) {
+            frame.open();
+            return;
         }
-    });
 
-    // آپدیت زیرجمع و جمع کل هنگام تغییر تعداد یا انتخاب محصول
-    $(document).on('input change', '.quantity-input', function() {
-        var $row = $(this).closest('tr');
-        updateSubtotal($row);
-        updateOrderTotal();
-    });
-
-    $(document).on('change', '.siwo-product-search', function() {
-        var $row = $(this).closest('tr');
-        updateSubtotal($row);
-        updateOrderTotal();
-    });
-
-    // محاسبه زیرجمع برای یک ردیف
-    function updateSubtotal($row) {
-        var quantity = parseInt($row.find('.quantity-input').val()) || 0;
-        var price = parseFloat($row.find('.siwo-product-search').data('price')) || 0;
-        var subtotal = price * quantity;
-        $row.find('.subtotal').text(siwo_data.currency_symbol + subtotal.toFixed(2));
-    }
-
-    // محاسبه جمع کل
-    function updateOrderTotal() {
-        var total = 0;
-        $('#siwo-order-items tr').each(function() {
-            var $row = $(this);
-            var quantity = parseInt($row.find('.quantity-input').val()) || 0;
-            var price = parseFloat($row.find('.siwo-product-search').data('price')) || 0;
-            total += price * quantity;
+        frame = wp.media({
+            title: siwo_translations.upload_logo,
+            button: {
+                text: siwo_translations.select_logo
+            },
+            multiple: false
         });
-        $('.order-total').text(siwo_data.currency_symbol + total.toFixed(2));
-    }
 
-    // محاسبه اولیه جمع کل
-    updateOrderTotal();
+        frame.on('select', function() {
+            var attachment = frame.state().get('selection').first().toJSON();
+            $('#siwo_logo').val(attachment.url);
+            var preview = '<div class="mt-2"><img src="' + attachment.url + '" alt="' + siwo_translations.logo_preview + '" style="max-width: 200px; max-height: 200px;" /></div>';
+            $('#siwo_logo').siblings('.mt-2').remove();
+            $('#siwo_logo').after(preview);
+            if (!$('#siwo_remove_logo').length) {
+                $('#siwo_upload_logo').after('<button type="button" id="siwo_remove_logo" class="btn btn-danger ms-2">' + siwo_translations.remove_logo + '</button>');
+            }
+        });
 
-    // پرینت سفارش
-    $('.siwo-print-order').on('click', function(e) {
+        frame.open();
+    });
+
+    // حذف لوگو
+    $(document).on('click', '#siwo_remove_logo', function(e) {
+        e.preventDefault();
+        $('#siwo_logo').val('');
+        $('#siwo_logo').siblings('.mt-2').remove();
+        $(this).remove();
+    });
+
+    // افزودن پارامتر SMS
+    $('#siwo-add-param').on('click', function(e) {
+        e.preventDefault();
+        var paramRow = `
+            <div class="siwo-sms-param-row mb-2 d-flex align-items-center">
+                <input type="text" name="siwo_sms_param_name[]" class="form-control w-25 me-2" placeholder="${siwo_translations.param_name}" />
+                <input type="text" name="siwo_sms_param_value[]" class="form-control w-25 me-2" placeholder="${siwo_translations.param_value}" />
+                <button type="button" class="btn btn-danger btn-sm siwo-remove-param"><i class="bi bi-trash"></i></button>
+            </div>
+        `;
+        $('#siwo-sms-params').append(paramRow);
+    });
+
+    // حذف پارامتر SMS
+    $(document).on('click', '.siwo-remove-param', function(e) {
+        e.preventDefault();
+        $(this).closest('.siwo-sms-param-row').remove();
+    });
+
+    // نمایش جزئیات سفارش در مودال
+    $('.siwo-view-order').on('click', function(e) {
         e.preventDefault();
         var orderId = $(this).data('order-id');
         $.ajax({
@@ -126,65 +146,101 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 if (response.success) {
-                    var printWindow = window.open('', '_blank');
-                    printWindow.document.write('<html><head><title>Invoice #' + response.data.invoice_number + '</title>');
-                    printWindow.document.write('<style>');
-                    printWindow.document.write('body { font-family: Arial, sans-serif; margin: 30px; color: #333; }');
-                    printWindow.document.write('.invoice-container { max-width: 800px; margin: auto; border: 1px solid #ddd; padding: 20px; border-radius: 5px; }');
-                    printWindow.document.write('.invoice-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #007bff; padding-bottom: 15px; margin-bottom: 20px; }');
-                    printWindow.document.write('.invoice-logo { max-width: 150px; }');
-                    printWindow.document.write('.invoice-details { text-align: right; }');
-                    printWindow.document.write('.invoice-details h1 { margin: 0; color: #007bff; }');
-                    printWindow.document.write('table { width: 100%; border-collapse: collapse; margin: 20px 0; }');
-                    printWindow.document.write('th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }');
-                    printWindow.document.write('th { background-color: #007bff; color: white; }');
-                    printWindow.document.write('.total { font-weight: bold; font-size: 1.2em; margin-top: 20px; text-align: right; }');
-                    printWindow.document.write('.notes { margin-top: 20px; padding: 10px; background: #f8f9fa; border-radius: 5px; }');
-                    printWindow.document.write('</style>');
-                    printWindow.document.write('</head><body>');
-
-                    printWindow.document.write('<div class="invoice-container">');
-                    printWindow.document.write('<div class="invoice-header">');
-                    if (response.data.logo_url) {
-                        printWindow.document.write('<img src="' + response.data.logo_url + '" class="invoice-logo" alt="Logo">');
-                    } else {
-                        printWindow.document.write('<h2>SiteIran</h2>');
-                    }
-                    printWindow.document.write('<div class="invoice-details">');
-                    printWindow.document.write('<h1>' + response.data.invoice_number + '</h1>');
-                    printWindow.document.write('<p><strong>Date:</strong> ' + response.data.date + '</p>');
-                    printWindow.document.write('<p><strong>Customer:</strong> ' + response.data.customer + '</p>');
-                    printWindow.document.write('<p><strong>Status:</strong> ' + response.data.status + '</p>');
-                    printWindow.document.write('</div></div>');
-
-                    printWindow.document.write('<table><thead><tr><th>Product</th><th>Quantity</th><th>Price</th><th>Total</th></tr></thead><tbody>');
+                    var data = response.data;
+                    var html = '<p><strong>' + siwo_translations.order_id + '</strong> ' + data.invoice_number + '</p>';
+                    html += '<p><strong>' + siwo_translations.customer + '</strong> ' + data.customer + '</p>';
+                    html += '<p><strong>' + siwo_translations.status + '</strong> ' + data.status + '</p>';
+                    html += '<p><strong>' + siwo_translations.date + '</strong> ' + data.date + '</p>';
+                    html += '<h5>' + siwo_translations.products + '</h5>';
+                    html += '<table class="table table-bordered"><thead><tr><th>' + siwo_translations.product + '</th><th>' + siwo_translations.quantity + '</th><th>' + siwo_translations.price + '</th><th>' + siwo_translations.total + '</th></tr></thead><tbody>';
                     var grandTotal = 0;
-                    $.each(response.data.products, function(productName, details) {
+                    $.each(data.products, function(productName, details) {
                         var total = details.quantity * details.price;
                         grandTotal += total;
-                        printWindow.document.write('<tr><td>' + productName + '</td><td>' + details.quantity + '</td><td>' + details.price_formatted + '</td><td>' + details.total_formatted + '</td></tr>');
+                        html += '<tr><td>' + productName + '</td><td>' + details.quantity + '</td><td>' + details.price_formatted + '</td><td>' + details.total_formatted + '</td></tr>';
                     });
-                    printWindow.document.write('</tbody></table>');
-
-                    var notes = response.data.notes || '';
-                    if (notes.trim() !== '') {
-                        printWindow.document.write('<div class="notes"><strong>Notes:</strong> ' + notes + '</div>');
+                    html += '</tbody></table>';
+                    if (data.notes) {
+                        html += '<p><strong>' + siwo_translations.notes + '</strong> ' + data.notes + '</p>';
                     }
-
-                    var discount = response.data.discount || 0;
-                    var finalTotal = grandTotal * (1 - discount / 100);
-                    printWindow.document.write('<div class="total">');
-                    printWindow.document.write('<p>Subtotal: ' + grandTotal.toFixed(2) + ' ' + response.data.currency + '</p>');
+                    var discount = parseFloat(data.discount) || 0;
+                    var finalTotal = grandTotal - discount;
+                    html += '<p><strong>' + siwo_translations.subtotal + '</strong> ' + grandTotal.toFixed(2) + ' ' + data.currency + '</p>';
                     if (discount > 0) {
-                        printWindow.document.write('<p>Discount (' + discount + '%): -' + (grandTotal * discount / 100).toFixed(2) + ' ' + response.data.currency + '</p>');
+                        html += '<p><strong>' + siwo_translations.discount + '</strong> -' + discount.toFixed(2) + ' ' + data.currency + '</p>';
                     }
-                    printWindow.document.write('<p>Total: ' + finalTotal.toFixed(2) + ' ' + response.data.currency + '</p>');
-                    printWindow.document.write('</div>');
+                    html += '<p><strong>' + siwo_translations.total + '</strong> ' + finalTotal.toFixed(2) + ' ' + data.currency + '</p>';
 
-                    printWindow.document.write('</div></body></html>');
+                    $('#siwo-order-details').html(html);
+                    $('#siwoOrderModal').modal('show');
+                } else {
+                    alert(siwo_translations.failed_load_order);
+                }
+            },
+            error: function() {
+                alert(siwo_translations.error_fetching_order);
+            }
+        });
+    });
+
+    // پرینت سفارش
+    $('.siwo-print-order').on('click', function(e) {
+        e.preventDefault();
+        var orderId = $(this).data('order-id');
+        var printWindow = window.open('', '_blank');
+        $.ajax({
+            url: siwo_ajax.ajax_url,
+            method: 'POST',
+            data: {
+                action: 'siwo_get_order_data',
+                order_id: orderId
+            },
+            success: function(response) {
+                if (response.success) {
+                    var data = response.data;
+                    var printContent = '<html><head><title>' + siwo_translations.order_invoice + ' #' + data.invoice_number + '</title>';
+                    printContent += '<style>body { font-family: Arial, sans-serif; margin: 20px; direction: rtl; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; text-align: right; } th { background-color: #f2f2f2; } .logo { max-width: 150px; max-height: 150px; margin-bottom: 20px; float: left; }</style>';
+                    printContent += '</head><body>';
+                    // اضافه کردن لوگو
+                    if (siwo_settings.logo) {
+                        printContent += '<img src="' + siwo_settings.logo + '" class="logo" alt="Logo" />';
+                    }
+                    printContent += '<h2>' + siwo_translations.order_invoice + ' #' + data.invoice_number + '</h2>';
+                    printContent += '<p><strong>' + siwo_translations.customer + '</strong> ' + data.customer + '</p>';
+                    printContent += '<p><strong>' + siwo_translations.status + '</strong> ' + data.status + '</p>';
+                    printContent += '<p><strong>' + siwo_translations.date + '</strong> ' + data.date + '</p>';
+                    printContent += '<h4>' + siwo_translations.products + '</h4>';
+                    printContent += '<table><thead><tr><th>' + siwo_translations.product + '</th><th>' + siwo_translations.quantity + '</th><th>' + siwo_translations.price + '</th><th>' + siwo_translations.total + '</th></tr></thead><tbody>';
+                    var grandTotal = 0;
+                    $.each(data.products, function(productName, details) {
+                        var total = details.quantity * details.price;
+                        grandTotal += total;
+                        printContent += '<tr><td>' + productName + '</td><td>' + details.quantity + '</td><td>' + details.price_formatted + '</td><td>' + details.total_formatted + '</td></tr>';
+                    });
+                    printContent += '</tbody></table>';
+                    if (data.notes) {
+                        printContent += '<p><strong>' + siwo_translations.notes + '</strong> ' + data.notes + '</p>';
+                    }
+                    var discount = parseFloat(data.discount) || 0;
+                    var finalTotal = grandTotal - discount;
+                    printContent += '<p><strong>' + siwo_translations.subtotal + '</strong> ' + grandTotal.toFixed(2) + ' ' + data.currency + '</p>';
+                    if (discount > 0) {
+                        printContent += '<p><strong>' + siwo_translations.discount + '</strong> -' + discount.toFixed(2) + ' ' + data.currency + '</p>';
+                    }
+                    printContent += '<p><strong>' + siwo_translations.total + '</strong> ' + finalTotal.toFixed(2) + ' ' + data.currency + '</p>';
+                    printContent += '</body></html>';
+
+                    printWindow.document.write(printContent);
                     printWindow.document.close();
                     printWindow.print();
+                } else {
+                    alert(siwo_translations.failed_load_order_print);
+                    printWindow.close();
                 }
+            },
+            error: function() {
+                alert(siwo_translations.error_fetching_order_print);
+                printWindow.close();
             }
         });
     });

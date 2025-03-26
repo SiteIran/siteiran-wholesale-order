@@ -1,0 +1,254 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: SiteIran Wholesale Order\n"
+"POT-Creation-Date: 2025-03-25 12:00+0000\n"
+"PO-Revision-Date: 2025-03-25 12:00+0000\n"
+"Last-Translator: Your Name\n"
+"Language-Team: English\n"
+"Language: en_US\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Wholesale Orders"
+msgstr "Wholesale Orders"
+
+msgid "Add New"
+msgstr "Add New"
+
+msgid "Add New Wholesale Order"
+msgstr "Add New Wholesale Order"
+
+msgid "Edit Wholesale Order"
+msgstr "Edit Wholesale Order"
+
+msgid "View Wholesale Order"
+msgstr "View Wholesale Order"
+
+msgid "Search product..."
+msgstr "Search product..."
+
+msgid "Remove"
+msgstr "Remove"
+
+msgid "Customer"
+msgstr "Customer"
+
+msgid "Select Customer"
+msgstr "Select Customer"
+
+msgid "Products"
+msgstr "Products"
+
+msgid "Quantity"
+msgstr "Quantity"
+
+msgid "Price"
+msgstr "Price"
+
+msgid "Subtotal"
+msgstr "Subtotal"
+
+msgid "Action"
+msgstr "Action"
+
+msgid "Add Product"
+msgstr "Add Product"
+
+msgid "Order Details"
+msgstr "Order Details"
+
+msgid "Order Status:"
+msgstr "Order Status:"
+
+msgid "Pending"
+msgstr "Pending"
+
+msgid "Processing"
+msgstr "Processing"
+
+msgid "Completed"
+msgstr "Completed"
+
+msgid "Order Notes:"
+msgstr "Order Notes:"
+
+msgid "Discount (amount)"
+msgstr "Discount (amount)"
+
+msgid "Enter the discount amount for this order."
+msgstr "Enter the discount amount for this order."
+
+msgid "Order Total"
+msgstr "Order Total"
+
+msgid "Save Order"
+msgstr "Save Order"
+
+msgid "Order saved successfully!"
+msgstr "Order saved successfully!"
+
+msgid "Error saving order. Please try again."
+msgstr "Error saving order. Please try again."
+
+msgid "This order has been converted to WooCommerce and cannot be edited."
+msgstr "This order has been converted to WooCommerce and cannot be edited."
+
+msgid "Order ID"
+msgstr "Order ID"
+
+msgid "Total"
+msgstr "Total"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Date"
+msgstr "Date"
+
+msgid "Actions"
+msgstr "Actions"
+
+msgid "No orders found."
+msgstr "No orders found."
+
+msgid "View Order"
+msgstr "View Order"
+
+msgid "Edit Order"
+msgstr "Edit Order"
+
+msgid "Print Order"
+msgstr "Print Order"
+
+msgid "Convert to WooCommerce"
+msgstr "Convert to WooCommerce"
+
+msgid "Cancel Order"
+msgstr "Cancel Order"
+
+msgid "Are you sure you want to cancel this order?"
+msgstr "Are you sure you want to cancel this order?"
+
+msgid "Order converted to WooCommerce successfully!"
+msgstr "Order converted to WooCommerce successfully!"
+
+msgid "Order cancelled successfully!"
+msgstr "Order cancelled successfully!"
+
+msgid "Settings"
+msgstr "Settings"
+
+msgid "Wholesale Settings"
+msgstr "Wholesale Settings"
+
+msgid "Notification Settings"
+msgstr "Notification Settings"
+
+msgid "Notify Customer"
+msgstr "Notify Customer"
+
+msgid "Send notifications to the customer when an order is created or updated."
+msgstr "Send notifications to the customer when an order is created or updated."
+
+msgid "Notify Admin"
+msgstr "Notify Admin"
+
+msgid "Send notifications to the admin when an order is created or updated."
+msgstr "Send notifications to the admin when an order is created or updated."
+
+msgid "Admin Phone Number"
+msgstr "Admin Phone Number"
+
+msgid "Enter the admin phone number for SMS notifications."
+msgstr "Enter the admin phone number for SMS notifications."
+
+msgid "Notification Method"
+msgstr "Notification Method"
+
+msgid "Email"
+msgstr "Email"
+
+msgid "SMS"
+msgstr "SMS"
+
+msgid "Both"
+msgstr "Both"
+
+msgid "Email Header"
+msgstr "Email Header"
+
+msgid "The header text for email notifications."
+msgstr "The header text for email notifications."
+
+msgid "Logo"
+msgstr "Logo"
+
+msgid "Upload Logo"
+msgstr "Upload Logo"
+
+msgid "Remove Logo"
+msgstr "Remove Logo"
+
+msgid "Upload a logo to be used in email notifications and invoices."
+msgstr "Upload a logo to be used in email notifications and invoices."
+
+msgid "SMS Settings"
+msgstr "SMS Settings"
+
+msgid "SMS Provider"
+msgstr "SMS Provider"
+
+msgid "SMS.ir"
+msgstr "SMS.ir"
+
+msgid "SMS.ir API Key"
+msgstr "SMS.ir API Key"
+
+msgid "SMS.ir Template ID"
+msgstr "SMS.ir Template ID"
+
+msgid "SMS Parameters"
+msgstr "SMS Parameters"
+
+msgid "Add Parameter"
+msgstr "Add Parameter"
+
+msgid "Add parameters for SMS templates (e.g., ORDER_ID, STATUS, PRODUCTS, NOTES, FULLNAME)."
+msgstr "Add parameters for SMS templates (e.g., ORDER_ID, STATUS, PRODUCTS, NOTES, FULLNAME)."
+
+msgid "Parameter Name"
+msgstr "Parameter Name"
+
+msgid "Default Value (optional)"
+msgstr "Default Value (optional)"
+
+msgid "Order Settings"
+msgstr "Order Settings"
+
+msgid "Default Order Status"
+msgstr "Default Order Status"
+
+msgid "Default status for new orders."
+msgstr "Default status for new orders."
+
+msgid "Default Discount Percent"
+msgstr "Default Discount Percent"
+
+msgid "Default discount percentage for orders (applied when converting to WooCommerce)."
+msgstr "Default discount percentage for orders (applied when converting to WooCommerce)."
+
+msgid "Save Settings"
+msgstr "Save Settings"
+
+msgid "Settings saved successfully!"
+msgstr "Settings saved successfully!"
+
+msgid "Select Logo"
+msgstr "Select Logo"
+
+msgid "Select"
+msgstr "Select"
+
+msgid "Close"
+msgstr "Close"

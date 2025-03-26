@@ -1,24 +1,50 @@
 jQuery(document).ready(function($) {
+    // بررسی وجود siwo_report_data
+    if (typeof siwo_report_data === 'undefined') {
+        console.log('siwo_report_data is not defined.');
+        return;
+    }
+
+    // ایجاد نمودار فروش
     const ctx = document.getElementById('salesChart').getContext('2d');
-    const salesData = Object.values(siwo_report_data.sales_by_date);
-    const salesLabels = Object.keys(siwo_report_data.sales_by_date);
+    const salesData = {
+        labels: Object.keys(siwo_report_data.sales_by_date),
+        datasets: [{
+            label: siwo_report_data.labels.sales, // استفاده از متن ترجمه‌شده
+            data: Object.values(siwo_report_data.sales_by_date),
+            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1,
+            fill: true,
+        }]
+    };
 
     new Chart(ctx, {
         type: 'line',
-        data: {
-            labels: salesLabels,
-            datasets: [{
-                label: 'Sales (' + siwo_report_data.currency + ')',
-                data: salesData,
-                borderColor: '#007bff',
-                backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                fill: true,
-                tension: 0.4
-            }]
-        },
+        data: salesData,
         options: {
+            responsive: true,
             scales: {
-                y: { beginAtZero: true }
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return siwo_report_data.currency + value;
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + siwo_report_data.currency + context.parsed.y;
+                        }
+                    }
+                }
             }
         }
     });

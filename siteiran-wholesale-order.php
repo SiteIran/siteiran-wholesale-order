@@ -2,9 +2,9 @@
 /*
  * Plugin Name: SiteIran Wholesale Order
  * Plugin URI: https://siteiran.com
- * Description: A WooCommerce wholesale order management plugin for SiteIran.
- * Version: 1.0.0
- * Author: SiteIran Team
+ * Description: A powerful WooCommerce plugin for managing wholesale orders. Features include order filtering by status, date, customer, product, and invoice number; viewing, editing, canceling, printing, and converting orders to WooCommerce; sending email and SMS notifications to customers and admins on order creation, update, cancellation, or conversion; customizable SMS parameters; and a user-friendly interface with pagination and AJAX-powered order details.
+ * Version: 1.1.0
+ * Author: آریانپور
  * Author URI: https://siteiran.com
  * License: GPL-2.0+
  * Text Domain: siteiran-wholesale
@@ -44,17 +44,58 @@ function siwo_register_post_type() {
 add_action('init', 'siwo_register_post_type'); // ثبت پست تایپ در 'init'
 
 function siwo_enqueue_assets() {
-    // Bootstrap CSS
+    // لود استایل‌ها
     wp_enqueue_style('bootstrap', 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css', [], '5.3.3');
-    wp_enqueue_style('siwo-styles', SIWO_URL . 'assets/css/style.css', ['bootstrap'], '1.0.1');
-    // Select2 CSS
     wp_enqueue_style('select2', 'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css');
-    // Bootstrap JS
+    wp_enqueue_style('bootstrap-icons', 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css');
+    wp_enqueue_style('siwo-styles', SIWO_URL . 'assets/css/style.css', ['bootstrap', 'bootstrap-icons'], '1.1.0');
+
+    // لود اسکریپت‌ها
     wp_enqueue_script('popper', 'https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js', [], '2.11.8', true);
     wp_enqueue_script('bootstrap', 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js', ['popper'], '5.3.3', true);
     wp_enqueue_script('select2', 'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js', ['jquery'], '4.0.13', true);
-    wp_enqueue_script('siwo-scripts', SIWO_URL . 'assets/js/scripts.js', ['jquery', 'select2'], '1.0.1', true);
-    wp_localize_script('siwo-scripts', 'siwo_ajax', ['ajax_url' => admin_url('admin-ajax.php')]);
+    wp_enqueue_script('chart-js', 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js', [], '3.9.1', true);
+    wp_enqueue_script('siwo-scripts', SIWO_URL . 'assets/js/scripts.js', ['jquery', 'select2', 'bootstrap', 'chart-js'], '1.1.0', true);
+
+    // پاس دادن داده‌های AJAX و ترجمه‌ها به جاوااسکریپت
+    $translations = [
+        'select_customer' => __('Select a customer', 'siteiran-wholesale'),
+        'search_product' => __('Search for a product', 'siteiran-wholesale'),
+        'order_id' => __('Order ID:', 'siteiran-wholesale'),
+        'customer' => __('Customer:', 'siteiran-wholesale'),
+        'status' => __('Status:', 'siteiran-wholesale'),
+        'date' => __('Date:', 'siteiran-wholesale'),
+        'products' => __('Products:', 'siteiran-wholesale'),
+        'product' => __('Product', 'siteiran-wholesale'),
+        'quantity' => __('Quantity', 'siteiran-wholesale'),
+        'price' => __('Price', 'siteiran-wholesale'),
+        'total' => __('Total', 'siteiran-wholesale'),
+        'notes' => __('Notes:', 'siteiran-wholesale'),
+        'subtotal' => __('Subtotal:', 'siteiran-wholesale'),
+        'discount' => __('Discount:', 'siteiran-wholesale'),
+        'failed_load_order' => __('Failed to load order details.', 'siteiran-wholesale'),
+        'error_fetching_order' => __('An error occurred while fetching order details.', 'siteiran-wholesale'),
+        'order_invoice' => __('Order Invoice', 'siteiran-wholesale'),
+        'failed_load_order_print' => __('Failed to load order details for printing.', 'siteiran-wholesale'),
+        'error_fetching_order_print' => __('An error occurred while fetching order details for printing.', 'siteiran-wholesale'),
+        'upload_logo' => __('Upload Logo', 'siteiran-wholesale'),
+        'select_logo' => __('Select Logo', 'siteiran-wholesale'),
+        'logo_preview' => __('Logo Preview', 'siteiran-wholesale'),
+        'remove_logo' => __('Remove Logo', 'siteiran-wholesale'),
+        'param_name' => __('Parameter Name', 'siteiran-wholesale'),
+        'param_value' => __('Parameter Value', 'siteiran-wholesale'),
+    ];
+
+    wp_localize_script('siwo-scripts', 'siwo_ajax', [
+        'ajax_url' => admin_url('admin-ajax.php')
+    ]);
+
+    wp_localize_script('siwo-scripts', 'siwo_translations', $translations);
+
+    // پاس دادن لوگو به جاوااسکریپت
+    wp_localize_script('siwo-scripts', 'siwo_settings', [
+        'logo' => get_option('siwo_logo', '')
+    ]);
 }
 add_action('admin_enqueue_scripts', 'siwo_enqueue_assets');
 

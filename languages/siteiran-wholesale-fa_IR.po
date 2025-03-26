@@ -1,0 +1,254 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: SiteIran Wholesale Order\n"
+"POT-Creation-Date: 2025-03-25 12:00+0000\n"
+"PO-Revision-Date: 2025-03-25 12:00+0000\n"
+"Last-Translator: Your Name\n"
+"Language-Team: Persian\n"
+"Language: fa_IR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Wholesale Orders"
+msgstr "سفارش‌های عمده"
+
+msgid "Add New"
+msgstr "افزودن جدید"
+
+msgid "Add New Wholesale Order"
+msgstr "افزودن سفارش عمده جدید"
+
+msgid "Edit Wholesale Order"
+msgstr "ویرایش سفارش عمده"
+
+msgid "View Wholesale Order"
+msgstr "مشاهده سفارش عمده"
+
+msgid "Search product..."
+msgstr "جستجوی محصول..."
+
+msgid "Remove"
+msgstr "حذف"
+
+msgid "Customer"
+msgstr "مشتری"
+
+msgid "Select Customer"
+msgstr "انتخاب مشتری"
+
+msgid "Products"
+msgstr "محصولات"
+
+msgid "Quantity"
+msgstr "تعداد"
+
+msgid "Price"
+msgstr "قیمت"
+
+msgid "Subtotal"
+msgstr "جمع جزء"
+
+msgid "Action"
+msgstr "عملیات"
+
+msgid "Add Product"
+msgstr "افزودن محصول"
+
+msgid "Order Details"
+msgstr "جزئیات سفارش"
+
+msgid "Order Status:"
+msgstr "وضعیت سفارش:"
+
+msgid "Pending"
+msgstr "در انتظار"
+
+msgid "Processing"
+msgstr "در حال پردازش"
+
+msgid "Completed"
+msgstr "تکمیل‌شده"
+
+msgid "Order Notes:"
+msgstr "یادداشت‌های سفارش:"
+
+msgid "Discount (amount)"
+msgstr "تخفیف (مقدار)"
+
+msgid "Enter the discount amount for this order."
+msgstr "مقدار تخفیف برای این سفارش را وارد کنید."
+
+msgid "Order Total"
+msgstr "جمع کل سفارش"
+
+msgid "Save Order"
+msgstr "ذخیره سفارش"
+
+msgid "Order saved successfully!"
+msgstr "سفارش با موفقیت ذخیره شد!"
+
+msgid "Error saving order. Please try again."
+msgstr "خطا در ذخیره سفارش. لطفاً دوباره تلاش کنید."
+
+msgid "This order has been converted to WooCommerce and cannot be edited."
+msgstr "این سفارش به ووکامرس تبدیل شده و قابل ویرایش نیست."
+
+msgid "Order ID"
+msgstr "شناسه سفارش"
+
+msgid "Total"
+msgstr "جمع کل"
+
+msgid "Status"
+msgstr "وضعیت"
+
+msgid "Date"
+msgstr "تاریخ"
+
+msgid "Actions"
+msgstr "عملیات"
+
+msgid "No orders found."
+msgstr "هیچ سفارشی یافت نشد."
+
+msgid "View Order"
+msgstr "مشاهده سفارش"
+
+msgid "Edit Order"
+msgstr "ویرایش سفارش"
+
+msgid "Print Order"
+msgstr "چاپ سفارش"
+
+msgid "Convert to WooCommerce"
+msgstr "تبدیل به ووکامرس"
+
+msgid "Cancel Order"
+msgstr "لغو سفارش"
+
+msgid "Are you sure you want to cancel this order?"
+msgstr "آیا مطمئن هستید که می‌خواهید این سفارش را لغو کنید؟"
+
+msgid "Order converted to WooCommerce successfully!"
+msgstr "سفارش با موفقیت به ووکامرس تبدیل شد!"
+
+msgid "Order cancelled successfully!"
+msgstr "سفارش با موفقیت لغو شد!"
+
+msgid "Settings"
+msgstr "تنظیمات"
+
+msgid "Wholesale Settings"
+msgstr "تنظیمات عمده‌فروشی"
+
+msgid "Notification Settings"
+msgstr "تنظیمات اعلان‌ها"
+
+msgid "Notify Customer"
+msgstr "اطلاع‌رسانی به مشتری"
+
+msgid "Send notifications to the customer when an order is created or updated."
+msgstr "ارسال اعلان‌ها به مشتری هنگام ایجاد یا به‌روزرسانی سفارش."
+
+msgid "Notify Admin"
+msgstr "اطلاع‌رسانی به مدیر"
+
+msgid "Send notifications to the admin when an order is created or updated."
+msgstr "ارسال اعلان‌ها به مدیر هنگام ایجاد یا به‌روزرسانی سفارش."
+
+msgid "Admin Phone Number"
+msgstr "شماره تلفن مدیر"
+
+msgid "Enter the admin phone number for SMS notifications."
+msgstr "شماره تلفن مدیر را برای اعلان‌های SMS وارد کنید."
+
+msgid "Notification Method"
+msgstr "روش اطلاع‌رسانی"
+
+msgid "Email"
+msgstr "ایمیل"
+
+msgid "SMS"
+msgstr "پیامک"
+
+msgid "Both"
+msgstr "هر دو"
+
+msgid "Email Header"
+msgstr "سربرگ ایمیل"
+
+msgid "The header text for email notifications."
+msgstr "متن سربرگ برای اعلان‌های ایمیل."
+
+msgid "Logo"
+msgstr "لوگو"
+
+msgid "Upload Logo"
+msgstr "آپلود لوگو"
+
+msgid "Remove Logo"
+msgstr "حذف لوگو"
+
+msgid "Upload a logo to be used in email notifications and invoices."
+msgstr "یک لوگو برای استفاده در اعلان‌های ایمیل و فاکتورها آپلود کنید."
+
+msgid "SMS Settings"
+msgstr "تنظیمات پیامک"
+
+msgid "SMS Provider"
+msgstr "ارائه‌دهنده پیامک"
+
+msgid "SMS.ir"
+msgstr "پیامک.ir"
+
+msgid "SMS.ir API Key"
+msgstr "کلید API پیامک.ir"
+
+msgid "SMS.ir Template ID"
+msgstr "شناسه قالب پیامک.ir"
+
+msgid "SMS Parameters"
+msgstr "پارامترهای پیامک"
+
+msgid "Add Parameter"
+msgstr "افزودن پارامتر"
+
+msgid "Add parameters for SMS templates (e.g., ORDER_ID, STATUS, PRODUCTS, NOTES, FULLNAME)."
+msgstr "پارامترهایی برای قالب‌های پیامک اضافه کنید (مثلاً ORDER_ID، STATUS، PRODUCTS، NOTES، FULLNAME)."
+
+msgid "Parameter Name"
+msgstr "نام پارامتر"
+
+msgid "Default Value (optional)"
+msgstr "مقدار پیش‌فرض (اختیاری)"
+
+msgid "Order Settings"
+msgstr "تنظیمات سفارش"
+
+msgid "Default Order Status"
+msgstr "وضعیت پیش‌فرض سفارش"
+
+msgid "Default status for new orders."
+msgstr "وضعیت پیش‌فرض برای سفارش‌های جدید."
+
+msgid "Default Discount Percent"
+msgstr "درصد تخفیف پیش‌فرض"
+
+msgid "Default discount percentage for orders (applied when converting to WooCommerce)."
+msgstr "درصد تخفیف پیش‌فرض برای سفارش‌ها (هنگام تبدیل به ووکامرس اعمال می‌شود)."
+
+msgid "Save Settings"
+msgstr "ذخیره تنظیمات"
+
+msgid "Settings saved successfully!"
+msgstr "تنظیمات با موفقیت ذخیره شد!"
+
+msgid "Select Logo"
+msgstr "انتخاب لوگو"
+
+msgid "Select"
+msgstr "انتخاب"
+
+msgid "Close"
+msgstr "بستن"
