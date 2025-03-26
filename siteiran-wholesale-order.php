@@ -2,9 +2,9 @@
 /*
  * Plugin Name: SiteIran Wholesale Order
  * Plugin URI: https://siteiran.com
- * Description: A powerful WooCommerce plugin for managing wholesale orders. Features include order filtering by status, date, customer, product, and invoice number; viewing, editing, canceling, printing, and converting orders to WooCommerce; sending email and SMS notifications to customers and admins on order creation, update, cancellation, or conversion; customizable SMS parameters; and a user-friendly interface with pagination and AJAX-powered order details.
+ * Description: A WooCommerce plugin for managing wholesale orders, with features like order filtering, editing, canceling, printing, and converting to WooCommerce. It supports email/SMS notifications, customizable SMS settings, and a user-friendly interface with pagination and AJAX order details.
  * Version: 1.1.0
- * Author: آریانپور
+ * Author: Aryanpour
  * Author URI: https://siteiran.com
  * License: GPL-2.0+
  * Text Domain: siteiran-wholesale
@@ -26,6 +26,7 @@ define('SIWO_URL', plugin_dir_url(__FILE__));
 require_once SIWO_PATH . 'includes/class-siwo-admin.php';
 require_once SIWO_PATH . 'includes/class-siwo-settings.php';
 require_once SIWO_PATH . 'includes/class-siwo-orders.php';
+
 
 // Initialize plugin on 'init' hook instead of 'plugins_loaded'
 function siwo_init() {

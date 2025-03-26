@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: SiteIran Wholesale Order 1.1.0\n"
 "Report-Msgid-Bugs-To: https://siteiran.com\n"
 "POT-Creation-Date: 2025-03-26 12:00+0000\n"
-"PO-Revision-Date: 2025-03-26 19:06+0330\n"
+"PO-Revision-Date: 2025-03-26 19:50+0330\n"
 "Last-Translator: آریانپور\n"
 "Language-Team: SiteIran Team\n"
 "Language: fa_IR\n"
@@ -418,3 +418,15 @@ msgstr "نام شرکت شما"
 
 msgid "SiteIran (Aryanpour)"
 msgstr "سایت ایران (آریانپور)"
+
+msgid "A plugin for managing wholesale orders."
+msgstr "یک افزونه برای مدیریت سفارشات عمده."
+
+msgid "SiteIran Wholesale Order"
+msgstr "سفارش عمده سایت‌ایران"
+
+msgid "A WooCommerce plugin for managing wholesale orders, with features like order filtering, editing, canceling, printing, and converting to WooCommerce. It supports email/SMS notifications, customizable SMS settings, and a user-friendly interface with pagination and AJAX order details."
+msgstr "افزونه‌ای قدرتمند برای ووکامرس جهت مدیریت سفارشات عمده، با قابلیت‌هایی مثل فیلتر سفارشات، ویرایش، لغو، چاپ و تبدیل به سفارش ووکامرس. این افزونه از اعلان‌های ایمیل و پیامک، تنظیمات پیامک دلخواه، و رابط کاربری ساده با صفحه‌بندی و جزئیات سفارش مبتنی بر AJAX پشتیبانی می‌کند."
+
+msgid "Aryanpour"
+msgstr "آریانپور"
