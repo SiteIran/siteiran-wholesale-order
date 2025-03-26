@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: SiteIran Wholesale Order 1.1.0\n"
 "Report-Msgid-Bugs-To: https://siteiran.com\n"
 "POT-Creation-Date: 2025-03-26 12:00+0000\n"
-"PO-Revision-Date: 2025-03-26 18:46+0330\n"
+"PO-Revision-Date: 2025-03-26 19:06+0330\n"
 "Last-Translator: آریانپور\n"
 "Language-Team: SiteIran Team\n"
 "Language: fa_IR\n"
@@ -399,3 +399,22 @@ msgstr "وضعیت سفارش پیش فرض"
 
 msgid "Default Discount (%)"
 msgstr "تخفیف پیش‌فرض (%)"
+
+msgid "Add New Order"
+msgstr "سفارش جدید اضافه کنید"
+
+msgid "Wholesale Settings"
+msgstr "تنظیمات عمده فروشی"
+
+# ترجمه‌های هدر و فوتر
+msgid "Wholesale Management"
+msgstr "مدیریت عمده‌فروشی"
+
+msgid "&copy; %1$s %2$s. All rights reserved."
+msgstr "© %1$s %2$s. تمامی حقوق محفوظ است."
+
+msgid "Your Company Name"
+msgstr "نام شرکت شما"
+
+msgid "SiteIran (Aryanpour)"
+msgstr "سایت ایران (آریانپور)"

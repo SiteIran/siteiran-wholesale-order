@@ -243,3 +243,79 @@ h1, h5 {
     border-color: #007bff;
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
+
+/* استایل‌های هدر */
+.siwo-header {
+    background-color: #f8f9fa;
+    padding: 15px 20px;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 20px;
+}
+
+.siwo-header-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.siwo-logo {
+    max-height: 50px;
+    width: auto;
+}
+
+.siwo-header h1 {
+    margin: 0;
+    font-size: 24px;
+    color: #333;
+}
+
+/* استایل‌های فوتر */
+.siwo-footer {
+    background-color: #f8f9fa;
+    padding: 10px 20px;
+    border-top: 1px solid #ddd;
+    text-align: center;
+    margin-top: 20px;
+}
+
+.siwo-footer p {
+    margin: 0;
+    font-size: 14px;
+    color: #666;
+}
+
+/* استایل کلی صفحه */
+.siwo-page-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.siwo-content {
+    flex: 1;
+}
+
+#wpcontent {
+    height: 100%;
+    padding-right: 0px;
+}
+
+/* استایل‌های ریسپانسیو */
+@media (max-width: 992px ) {
+    #wpcontent {
+        padding-right: 0px !important;
+    }
+    
+}
+@media (max-width: 768px) {
+    #wpcontent {
+        padding-right: 0px !important;
+    }
+    
+}
+@media (max-width: 576) {
+    #wpcontent {
+        padding-right: 0px !important;
+    }
+    
+}

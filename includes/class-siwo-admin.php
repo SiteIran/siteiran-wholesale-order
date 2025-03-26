@@ -51,10 +51,56 @@ class SIWO_Admin {
         );
     }
 
+
+    /**
+     * متد برای رندر هدر
+     */
+    private function render_header() {
+        $logo_url = plugin_dir_url(__FILE__) . '../assets/images/logo.png'; // مسیر لوگو
+        ?>
+        <div class="siwo-header">
+            <div class="siwo-header-content">
+                <img src="<?php echo esc_url($logo_url); ?>" alt="<?php _e('Logo', 'siteiran-wholesale'); ?>" class="siwo-logo" />
+                <h1><?php _e('Wholesale Management', 'siteiran-wholesale'); ?></h1>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * متد برای رندر فوتر
+     */
+    private function render_footer() {
+        $current_year = date('Y');
+        ?>
+        <div class="siwo-footer">
+            <p>
+                <?php
+                printf(
+                    /* translators: %1$s: Current year, %2$s: Company name */
+                    __('&copy; %1$s %2$s. All rights reserved.', 'siteiran-wholesale'),
+                    esc_html($current_year),
+                    //esc_html__('Your Company Name', 'siteiran-wholesale') // نام شرکت یا برندت رو اینجا وارد کن
+                    esc_html__('SiteIran (Aryanpour)', 'siteiran-wholesale') // نام شرکت یا برندت رو اینجا وارد کن
+                );
+                ?>
+            </p>
+        </div>
+        <?php
+    }
+
     public function orders_page() {
         $orders = new SIWO_Orders();
         $orders->handle_actions();
-        $orders->render();
+        ?>
+        <div class="siwo-page-wrapper">
+            <?php $this->render_header(); ?>
+            <div class="siwo-content">
+                <?php $orders->render(); ?>
+            </div>
+            <?php $this->render_footer(); ?>
+        </div>
+        <?php
     }
 
     public function add_order_page() {
@@ -133,69 +179,75 @@ class SIWO_Admin {
             $order_id
         ), ARRAY_A) : [];
         ?>
-        <div class="wrap siwo-wrap">
-            <h1 class="mb-4"><?php echo $is_edit ? __('Edit Order', 'siteiran-wholesale') : __('Add New Order', 'siteiran-wholesale'); ?></h1>
-            <form method="post" class="siwo-add-order-form">
-                <div class="card shadow-sm mb-4">
-                    <div class="card-body">
-                        <h5 class="card-title"><?php _e('Order Details', 'siteiran-wholesale'); ?></h5>
-                        <div class="mb-3">
-                            <label for="siwo_customer" class="form-label"><?php _e('Customer', 'siteiran-wholesale'); ?></label>
-                            <select name="siwo_customer" id="siwo_customer" class="form-select siwo-select2" required>
-                                <option value=""><?php _e('Select Customer', 'siteiran-wholesale'); ?></option>
-                                <?php foreach ($customers as $customer) : ?>
-                                    <option value="<?php echo esc_attr($customer->ID); ?>" <?php selected($customer_id, $customer->ID); ?>>
-                                        <?php echo esc_html($customer->display_name); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+        <div class="siwo-page-wrapper">
+            <?php $this->render_header(); ?>
+            <div class="siwo-content">
+                <div class="wrap siwo-wrap">
+                    <h1 class="mb-4"><?php echo $is_edit ? __('Edit Order', 'siteiran-wholesale') : __('Add New Order', 'siteiran-wholesale'); ?></h1>
+                    <form method="post" class="siwo-add-order-form">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title"><?php _e('Order Details', 'siteiran-wholesale'); ?></h5>
+                                <div class="mb-3">
+                                    <label for="siwo_customer" class="form-label"><?php _e('Customer', 'siteiran-wholesale'); ?></label>
+                                    <select name="siwo_customer" id="siwo_customer" class="form-select siwo-select2" required>
+                                        <option value=""><?php _e('Select Customer', 'siteiran-wholesale'); ?></option>
+                                        <?php foreach ($customers as $customer) : ?>
+                                            <option value="<?php echo esc_attr($customer->ID); ?>" <?php selected($customer_id, $customer->ID); ?>>
+                                                <?php echo esc_html($customer->display_name); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="siwo_status" class="form-label"><?php _e('Status', 'siteiran-wholesale'); ?></label>
+                                    <select name="siwo_status" id="siwo_status" class="form-select">
+                                        <option value="pending" <?php selected($status, 'pending'); ?>><?php _e('Pending', 'siteiran-wholesale'); ?></option>
+                                        <option value="processing" <?php selected($status, 'processing'); ?>><?php _e('Processing', 'siteiran-wholesale'); ?></option>
+                                        <option value="completed" <?php selected($status, 'completed'); ?>><?php _e('Completed', 'siteiran-wholesale'); ?></option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="siwo_notes" class="form-label"><?php _e('Notes', 'siteiran-wholesale'); ?></label>
+                                    <textarea name="siwo_notes" id="siwo_notes" class="form-control" rows="3"><?php echo esc_textarea($notes); ?></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="siwo_discount" class="form-label"><?php _e('Discount', 'siteiran-wholesale'); ?></label>
+                                    <input type="number" name="siwo_discount" id="siwo_discount" class="form-control w-25" value="<?php echo esc_attr($discount); ?>" step="0.01" min="0" />
+                                </div>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="siwo_status" class="form-label"><?php _e('Status', 'siteiran-wholesale'); ?></label>
-                            <select name="siwo_status" id="siwo_status" class="form-select">
-                                <option value="pending" <?php selected($status, 'pending'); ?>><?php _e('Pending', 'siteiran-wholesale'); ?></option>
-                                <option value="processing" <?php selected($status, 'processing'); ?>><?php _e('Processing', 'siteiran-wholesale'); ?></option>
-                                <option value="completed" <?php selected($status, 'completed'); ?>><?php _e('Completed', 'siteiran-wholesale'); ?></option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="siwo_notes" class="form-label"><?php _e('Notes', 'siteiran-wholesale'); ?></label>
-                            <textarea name="siwo_notes" id="siwo_notes" class="form-control" rows="3"><?php echo esc_textarea($notes); ?></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="siwo_discount" class="form-label"><?php _e('Discount', 'siteiran-wholesale'); ?></label>
-                            <input type="number" name="siwo_discount" id="siwo_discount" class="form-control w-25" value="<?php echo esc_attr($discount); ?>" step="0.01" min="0" />
-                        </div>
-                    </div>
-                </div>
     
-                <div class="card shadow-sm mb-4">
-                    <div class="card-body">
-                        <h5 class="card-title"><?php _e('Products', 'siteiran-wholesale'); ?></h5>
-                        <div id="siwo-products">
-                            <?php if ($is_edit && !empty($items)) : ?>
-                                <?php foreach ($items as $index => $item) : ?>
-                                    <?php $product = wc_get_product($item['product_id']); ?>
-                                    <?php if ($product) : ?>
-                                        <div class="siwo-product-row mb-3 d-flex align-items-center">
-                                            <select name="siwo_products[]" class="form-select siwo-select2-product w-50 me-2">
-                                                <option value="<?php echo esc_attr($item['product_id']); ?>" selected>
-                                                    <?php echo esc_html($product->get_name()); ?>
-                                                </option>
-                                            </select>
-                                            <input type="number" name="siwo_products_quantity[]" class="form-control w-25 me-2" value="<?php echo esc_attr($item['quantity']); ?>" min="1" />
-                                            <button type="button" class="btn btn-danger btn-sm siwo-remove-product"><i class="bi bi-trash"></i></button>
-                                        </div>
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title"><?php _e('Products', 'siteiran-wholesale'); ?></h5>
+                                <div id="siwo-products">
+                                    <?php if ($is_edit && !empty($items)) : ?>
+                                        <?php foreach ($items as $index => $item) : ?>
+                                            <?php $product = wc_get_product($item['product_id']); ?>
+                                            <?php if ($product) : ?>
+                                                <div class="siwo-product-row mb-3 d-flex align-items-center">
+                                                    <select name="siwo_products[]" class="form-select siwo-select2-product w-50 me-2">
+                                                        <option value="<?php echo esc_attr($item['product_id']); ?>" selected>
+                                                            <?php echo esc_html($product->get_name()); ?>
+                                                        </option>
+                                                    </select>
+                                                    <input type="number" name="siwo_products_quantity[]" class="form-control w-25 me-2" value="<?php echo esc_attr($item['quantity']); ?>" min="1" />
+                                                    <button type="button" class="btn btn-danger btn-sm siwo-remove-product"><i class="bi bi-trash"></i></button>
+                                                </div>
+                                            <?php endif; ?>
+                                        <?php endforeach; ?>
                                     <?php endif; ?>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
+                                </div>
+                                <button type="button" id="siwo-add-product" class="btn btn-outline-primary"><i class="bi bi-plus-circle"></i> <?php _e('Add Product', 'siteiran-wholesale'); ?></button>
+                            </div>
                         </div>
-                        <button type="button" id="siwo-add-product" class="btn btn-outline-primary"><i class="bi bi-plus-circle"></i> <?php _e('Add Product', 'siteiran-wholesale'); ?></button>
-                    </div>
-                </div>
     
-                <button type="submit" name="siwo_save_order" class="btn btn-primary"><?php _e('Save Order', 'siteiran-wholesale'); ?></button>
-            </form>
+                        <button type="submit" name="siwo_save_order" class="btn btn-primary"><?php _e('Save Order', 'siteiran-wholesale'); ?></button>
+                    </form>
+                </div>
+            </div>
+            <?php $this->render_footer(); ?>
         </div>
         <?php
     }
@@ -367,205 +419,210 @@ class SIWO_Admin {
         ksort($chart_data['data']);
         $chart_labels = array_values($chart_data['labels']);
         $chart_values = array_values($chart_data['data']);
-
         ?>
-        <div class="wrap siwo-wrap">
-            <h1 class="mb-4"><?php _e('Reports', 'siteiran-wholesale'); ?></h1>
+        <div class="siwo-page-wrapper">
+            <?php $this->render_header(); ?>
+            <div class="siwo-content">
+                <div class="wrap siwo-wrap">
+                    <h1 class="mb-4"><?php _e('Reports', 'siteiran-wholesale'); ?></h1>
 
-            <!-- فرم فیلترها -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h5 class="card-title"><?php _e('Filter Reports', 'siteiran-wholesale'); ?></h5>
-                    <form method="get" class="row g-3">
-                        <input type="hidden" name="page" value="siwo-reports" />
-                        <div class="col-md-3 col-sm-6">
-                            <label for="status" class="form-label"><?php _e('Status', 'siteiran-wholesale'); ?></label>
-                            <select name="status" id="status" class="form-select">
-                                <option value=""><?php _e('All Statuses', 'siteiran-wholesale'); ?></option>
-                                <option value="pending" <?php selected($status_filter, 'pending'); ?>><?php _e('Pending', 'siteiran-wholesale'); ?></option>
-                                <option value="processing" <?php selected($status_filter, 'processing'); ?>><?php _e('Processing', 'siteiran-wholesale'); ?></option>
-                                <option value="completed" <?php selected($status_filter, 'completed'); ?>><?php _e('Completed', 'siteiran-wholesale'); ?></option>
-                                <option value="cancelled" <?php selected($status_filter, 'cancelled'); ?>><?php _e('Cancelled', 'siteiran-wholesale'); ?></option>
-                            </select>
-                        </div>
-                        <div class="col-md-3 col-sm-6">
-                            <label for="date_from" class="form-label"><?php _e('Date From', 'siteiran-wholesale'); ?></label>
-                            <input type="date" name="date_from" id="date_from" class="form-control" value="<?php echo esc_attr($date_from); ?>" />
-                        </div>
-                        <div class="col-md-3 col-sm-6">
-                            <label for="date_to" class="form-label"><?php _e('Date To', 'siteiran-wholesale'); ?></label>
-                            <input type="date" name="date_to" id="date_to" class="form-control" value="<?php echo esc_attr($date_to); ?>" />
-                        </div>
-                        <div class="col-md-3 col-sm-6">
-                            <label for="customer" class="form-label"><?php _e('Customer', 'siteiran-wholesale'); ?></label>
-                            <select name="customer" id="customer" class="form-select siwo-select2">
-                                <option value=""><?php _e('All Customers', 'siteiran-wholesale'); ?></option>
-                                <?php foreach ($customers as $customer) : ?>
-                                    <option value="<?php echo esc_attr($customer->ID); ?>" <?php selected($customer_filter, $customer->ID); ?>>
-                                        <?php echo esc_html($customer->display_name); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-md-3 col-sm-6">
-                            <label for="report_type" class="form-label"><?php _e('Report Type', 'siteiran-wholesale'); ?></label>
-                            <select name="report_type" id="report_type" class="form-select">
-                                <option value=""><?php _e('Custom Range', 'siteiran-wholesale'); ?></option>
-                                <option value="today" <?php selected($report_type, 'today'); ?>><?php _e('Today', 'siteiran-wholesale'); ?></option>
-                                <option value="yesterday" <?php selected($report_type, 'yesterday'); ?>><?php _e('Yesterday', 'siteiran-wholesale'); ?></option>
-                                <option value="last_week" <?php selected($report_type, 'last_week'); ?>><?php _e('Last Week', 'siteiran-wholesale'); ?></option>
-                                <option value="last_month" <?php selected($report_type, 'last_month'); ?>><?php _e('Last Month', 'siteiran-wholesale'); ?></option>
-                            </select>
-                        </div>
-                        <div class="col-12 mt-3">
-                            <button type="submit" class="btn btn-primary me-2"><?php _e('Filter', 'siteiran-wholesale'); ?></button>
-                            <a href="<?php echo admin_url('admin.php?page=siwo-reports'); ?>" class="btn btn-outline-secondary"><?php _e('Reset', 'siteiran-wholesale'); ?></a>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- خلاصه گزارشات -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h5 class="card-title"><?php _e('Summary', 'siteiran-wholesale'); ?></h5>
-                    <div class="row">
-                        <div class="col-md-4">
-                            <p><strong><?php _e('Total Orders:', 'siteiran-wholesale'); ?></strong> <?php echo esc_html($total_orders); ?></p>
-                        </div>
-                        <div class="col-md-4">
-                            <p><strong><?php _e('Total Amount:', 'siteiran-wholesale'); ?></strong> <?php echo wc_price($total_amount); ?></p>
-                        </div>
-                        <div class="col-md-4">
-                            <p><strong><?php _e('Total Discount:', 'siteiran-wholesale'); ?></strong> <?php echo wc_price($total_discount); ?></p>
+                    <!-- فرم فیلترها -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title"><?php _e('Filter Reports', 'siteiran-wholesale'); ?></h5>
+                            <form method="get" class="row g-3">
+                                <input type="hidden" name="page" value="siwo-reports" />
+                                <div class="col-md-3 col-sm-6">
+                                    <label for="status" class="form-label"><?php _e('Status', 'siteiran-wholesale'); ?></label>
+                                    <select name="status" id="status" class="form-select">
+                                        <option value=""><?php _e('All Statuses', 'siteiran-wholesale'); ?></option>
+                                        <option value="pending" <?php selected($status_filter, 'pending'); ?>><?php _e('Pending', 'siteiran-wholesale'); ?></option>
+                                        <option value="processing" <?php selected($status_filter, 'processing'); ?>><?php _e('Processing', 'siteiran-wholesale'); ?></option>
+                                        <option value="completed" <?php selected($status_filter, 'completed'); ?>><?php _e('Completed', 'siteiran-wholesale'); ?></option>
+                                        <option value="cancelled" <?php selected($status_filter, 'cancelled'); ?>><?php _e('Cancelled', 'siteiran-wholesale'); ?></option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 col-sm-6">
+                                    <label for="date_from" class="form-label"><?php _e('Date From', 'siteiran-wholesale'); ?></label>
+                                    <input type="date" name="date_from" id="date_from" class="form-control" value="<?php echo esc_attr($date_from); ?>" />
+                                </div>
+                                <div class="col-md-3 col-sm-6">
+                                    <label for="date_to" class="form-label"><?php _e('Date To', 'siteiran-wholesale'); ?></label>
+                                    <input type="date" name="date_to" id="date_to" class="form-control" value="<?php echo esc_attr($date_to); ?>" />
+                                </div>
+                                <div class="col-md-3 col-sm-6">
+                                    <label for="customer" class="form-label"><?php _e('Customer', 'siteiran-wholesale'); ?></label>
+                                    <select name="customer" id="customer" class="form-select siwo-select2">
+                                        <option value=""><?php _e('All Customers', 'siteiran-wholesale'); ?></option>
+                                        <?php foreach ($customers as $customer) : ?>
+                                            <option value="<?php echo esc_attr($customer->ID); ?>" <?php selected($customer_filter, $customer->ID); ?>>
+                                                <?php echo esc_html($customer->display_name); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 col-sm-6">
+                                    <label for="report_type" class="form-label"><?php _e('Report Type', 'siteiran-wholesale'); ?></label>
+                                    <select name="report_type" id="report_type" class="form-select">
+                                        <option value=""><?php _e('Custom Range', 'siteiran-wholesale'); ?></option>
+                                        <option value="today" <?php selected($report_type, 'today'); ?>><?php _e('Today', 'siteiran-wholesale'); ?></option>
+                                        <option value="yesterday" <?php selected($report_type, 'yesterday'); ?>><?php _e('Yesterday', 'siteiran-wholesale'); ?></option>
+                                        <option value="last_week" <?php selected($report_type, 'last_week'); ?>><?php _e('Last Week', 'siteiran-wholesale'); ?></option>
+                                        <option value="last_month" <?php selected($report_type, 'last_month'); ?>><?php _e('Last Month', 'siteiran-wholesale'); ?></option>
+                                    </select>
+                                </div>
+                                <div class="col-12 mt-3">
+                                    <button type="submit" class="btn btn-primary me-2"><?php _e('Filter', 'siteiran-wholesale'); ?></button>
+                                    <a href="<?php echo admin_url('admin.php?page=siwo-reports'); ?>" class="btn btn-outline-secondary"><?php _e('Reset', 'siteiran-wholesale'); ?></a>
+                                </div>
+                            </form>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- نمودار سفارشات -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h5 class="card-title"><?php _e('Order Trends', 'siteiran-wholesale'); ?></h5>
-                    <canvas id="siwoOrderChart" height="100"></canvas>
-                </div>
-            </div>
+                    <!-- خلاصه گزارشات -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title"><?php _e('Summary', 'siteiran-wholesale'); ?></h5>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <p><strong><?php _e('Total Orders:', 'siteiran-wholesale'); ?></strong> <?php echo esc_html($total_orders); ?></p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p><strong><?php _e('Total Amount:', 'siteiran-wholesale'); ?></strong> <?php echo wc_price($total_amount); ?></p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p><strong><?php _e('Total Discount:', 'siteiran-wholesale'); ?></strong> <?php echo wc_price($total_discount); ?></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-            <!-- گزارش بیشترین سفارشات -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h5 class="card-title"><?php _e('Top Customers', 'siteiran-wholesale'); ?></h5>
-                    <div class="table-responsive">
-                        <table class="table table-bordered">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th><?php _e('Customer', 'siteiran-wholesale'); ?></th>
-                                    <th><?php _e('Number of Orders', 'siteiran-wholesale'); ?></th>
-                                    <th><?php _e('Total Amount', 'siteiran-wholesale'); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (!empty($customer_orders)) : ?>
-                                    <?php $top_customers = array_slice($customer_orders, 0, 5); // نمایش 5 مشتری برتر ?>
-                                    <?php foreach ($top_customers as $customer) : ?>
+                    <!-- نمودار سفارشات -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title"><?php _e('Order Trends', 'siteiran-wholesale'); ?></h5>
+                            <canvas id="siwoOrderChart" height="100"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- گزارش بیشترین سفارشات -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title"><?php _e('Top Customers', 'siteiran-wholesale'); ?></h5>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead class="table-dark">
                                         <tr>
-                                            <td><?php echo esc_html($customer['name']); ?></td>
-                                            <td><?php echo esc_html($customer['order_count']); ?></td>
-                                            <td><?php echo wc_price($customer['total_amount']); ?></td>
+                                            <th><?php _e('Customer', 'siteiran-wholesale'); ?></th>
+                                            <th><?php _e('Number of Orders', 'siteiran-wholesale'); ?></th>
+                                            <th><?php _e('Total Amount', 'siteiran-wholesale'); ?></th>
                                         </tr>
-                                    <?php endforeach; ?>
-                                <?php else : ?>
-                                    <tr>
-                                        <td colspan="3"><?php _e('No customers found.', 'siteiran-wholesale'); ?></td>
-                                    </tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (!empty($customer_orders)) : ?>
+                                            <?php $top_customers = array_slice($customer_orders, 0, 5); // نمایش 5 مشتری برتر ?>
+                                            <?php foreach ($top_customers as $customer) : ?>
+                                                <tr>
+                                                    <td><?php echo esc_html($customer['name']); ?></td>
+                                                    <td><?php echo esc_html($customer['order_count']); ?></td>
+                                                    <td><?php echo wc_price($customer['total_amount']); ?></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        <?php else : ?>
+                                            <tr>
+                                                <td colspan="3"><?php _e('No customers found.', 'siteiran-wholesale'); ?></td>
+                                            </tr>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- جدول گزارشات -->
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h5 class="card-title"><?php _e('Order Reports', 'siteiran-wholesale'); ?></h5>
-                    <div class="table-responsive">
-                        <table class="table table-bordered">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th><?php _e('Order ID', 'siteiran-wholesale'); ?></th>
-                                    <th><?php _e('Customer', 'siteiran-wholesale'); ?></th>
-                                    <th><?php _e('Subtotal', 'siteiran-wholesale'); ?></th>
-                                    <th><?php _e('Discount', 'siteiran-wholesale'); ?></th>
-                                    <th><?php _e('Total', 'siteiran-wholesale'); ?></th>
-                                    <th><?php _e('Status', 'siteiran-wholesale'); ?></th>
-                                    <th><?php _e('Date', 'siteiran-wholesale'); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (!empty($orders_data)) : ?>
-                                    <?php foreach ($orders_data as $order) : ?>
-                                        <?php
-                                        // ترجمه وضعیت‌ها
-                                        $status_labels = [
-                                            'pending' => __('Pending', 'siteiran-wholesale'),
-                                            'processing' => __('Processing', 'siteiran-wholesale'),
-                                            'completed' => __('Completed', 'siteiran-wholesale'),
-                                            'cancelled' => __('Cancelled', 'siteiran-wholesale'),
-                                        ];
-
-                                        // رنگ‌بندی وضعیت‌ها
-                                        $status_class = '';
-                                        switch ($order['status']) {
-                                            case 'pending':
-                                                $status_class = 'text-warning';
-                                                break;
-                                            case 'processing':
-                                                $status_class = 'text-info';
-                                                break;
-                                            case 'completed':
-                                                $status_class = 'text-success';
-                                                break;
-                                            case 'cancelled':
-                                                $status_class = 'text-danger';
-                                                break;
-                                        }
-                                        ?>
+                    <!-- جدول گزارشات -->
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title"><?php _e('Order Reports', 'siteiran-wholesale'); ?></h5>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead class="table-dark">
                                         <tr>
-                                            <td>#<?php echo esc_html($order['order_id']); ?></td>
-                                            <td><?php echo esc_html($order['customer']); ?></td>
-                                            <td><?php echo wc_price($order['subtotal']); ?></td>
-                                            <td><?php echo wc_price($order['discount']); ?></td>
-                                            <td><?php echo wc_price($order['total']); ?></td>
-                                            <td><span class="<?php echo esc_attr($status_class); ?>"><?php echo esc_html($status_labels[$order['status']] ?? ucfirst($order['status'])); ?></span></td>
-                                            <td><?php echo esc_html($order['date']); ?></td>
+                                            <th><?php _e('Order ID', 'siteiran-wholesale'); ?></th>
+                                            <th><?php _e('Customer', 'siteiran-wholesale'); ?></th>
+                                            <th><?php _e('Subtotal', 'siteiran-wholesale'); ?></th>
+                                            <th><?php _e('Discount', 'siteiran-wholesale'); ?></th>
+                                            <th><?php _e('Total', 'siteiran-wholesale'); ?></th>
+                                            <th><?php _e('Status', 'siteiran-wholesale'); ?></th>
+                                            <th><?php _e('Date', 'siteiran-wholesale'); ?></th>
                                         </tr>
-                                    <?php endforeach; ?>
-                                <?php else : ?>
-                                    <tr>
-                                        <td colspan="7"><?php _e('No orders found.', 'siteiran-wholesale'); ?></td>
-                                    </tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (!empty($orders_data)) : ?>
+                                            <?php foreach ($orders_data as $order) : ?>
+                                                <?php
+                                                // ترجمه وضعیت‌ها
+                                                $status_labels = [
+                                                    'pending' => __('Pending', 'siteiran-wholesale'),
+                                                    'processing' => __('Processing', 'siteiran-wholesale'),
+                                                    'completed' => __('Completed', 'siteiran-wholesale'),
+                                                    'cancelled' => __('Cancelled', 'siteiran-wholesale'),
+                                                ];
 
-                    <!-- صفحه‌بندی -->
-                    <div class="siwo-pagination">
-                        <?php
-                        $big = 999999999;
-                        echo paginate_links([
-                            'base' => str_replace($big, '%#%', esc_url(get_pagenum_link($big))),
-                            'format' => '?paged=%#%',
-                            'current' => max(1, $args['paged']),
-                            'total' => $orders_query->max_num_pages,
-                            'prev_text' => __('« Previous', 'siteiran-wholesale'),
-                            'next_text' => __('Next »', 'siteiran-wholesale'),
-                        ]);
-                        ?>
+                                                // رنگ‌بندی وضعیت‌ها
+                                                $status_class = '';
+                                                switch ($order['status']) {
+                                                    case 'pending':
+                                                        $status_class = 'text-warning';
+                                                        break;
+                                                    case 'processing':
+                                                        $status_class = 'text-info';
+                                                        break;
+                                                    case 'completed':
+                                                        $status_class = 'text-success';
+                                                        break;
+                                                    case 'cancelled':
+                                                        $status_class = 'text-danger';
+                                                        break;
+                                                }
+                                                ?>
+                                                <tr>
+                                                    <td>#<?php echo esc_html($order['order_id']); ?></td>
+                                                    <td><?php echo esc_html($order['customer']); ?></td>
+                                                    <td><?php echo wc_price($order['subtotal']); ?></td>
+                                                    <td><?php echo wc_price($order['discount']); ?></td>
+                                                    <td><?php echo wc_price($order['total']); ?></td>
+                                                    <td><span class="<?php echo esc_attr($status_class); ?>"><?php echo esc_html($status_labels[$order['status']] ?? ucfirst($order['status'])); ?></span></td>
+                                                    <td><?php echo esc_html($order['date']); ?></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        <?php else : ?>
+                                            <tr>
+                                                <td colspan="7"><?php _e('No orders found.', 'siteiran-wholesale'); ?></td>
+                                            </tr>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- صفحه‌بندی -->
+                            <div class="siwo-pagination">
+                                <?php
+                                $big = 999999999;
+                                echo paginate_links([
+                                    'base' => str_replace($big, '%#%', esc_url(get_pagenum_link($big))),
+                                    'format' => '?paged=%#%',
+                                    'current' => max(1, $args['paged']),
+                                    'total' => $orders_query->max_num_pages,
+                                    'prev_text' => __('« Previous', 'siteiran-wholesale'),
+                                    'next_text' => __('Next »', 'siteiran-wholesale'),
+                                ]);
+                                ?>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+            <?php $this->render_footer(); ?>
         </div>
 
         <!-- اسکریپت برای نمودار -->
@@ -616,7 +673,15 @@ class SIWO_Admin {
 
     public function settings_page() {
         $settings = new SIWO_Settings();
-        $settings->render();
+        ?>
+        <div class="siwo-page-wrapper">
+            <?php $this->render_header(); ?>
+            <div class="siwo-content">
+                <?php $settings->render(); ?>
+            </div>
+            <?php $this->render_footer(); ?>
+        </div>
+        <?php
     }
 
     public function search_products() {
