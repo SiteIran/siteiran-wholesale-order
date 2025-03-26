@@ -506,6 +506,14 @@ class SIWO_Admin {
                                 <?php if (!empty($orders_data)) : ?>
                                     <?php foreach ($orders_data as $order) : ?>
                                         <?php
+                                        // ترجمه وضعیت‌ها
+                                        $status_labels = [
+                                            'pending' => __('Pending', 'siteiran-wholesale'),
+                                            'processing' => __('Processing', 'siteiran-wholesale'),
+                                            'completed' => __('Completed', 'siteiran-wholesale'),
+                                            'cancelled' => __('Cancelled', 'siteiran-wholesale'),
+                                        ];
+
                                         // رنگ‌بندی وضعیت‌ها
                                         $status_class = '';
                                         switch ($order['status']) {
@@ -529,7 +537,7 @@ class SIWO_Admin {
                                             <td><?php echo wc_price($order['subtotal']); ?></td>
                                             <td><?php echo wc_price($order['discount']); ?></td>
                                             <td><?php echo wc_price($order['total']); ?></td>
-                                            <td><span class="<?php echo esc_attr($status_class); ?>"><?php echo esc_html(ucfirst($order['status'])); ?></span></td>
+                                            <td><span class="<?php echo esc_attr($status_class); ?>"><?php echo esc_html($status_labels[$order['status']] ?? ucfirst($order['status'])); ?></span></td>
                                             <td><?php echo esc_html($order['date']); ?></td>
                                         </tr>
                                     <?php endforeach; ?>

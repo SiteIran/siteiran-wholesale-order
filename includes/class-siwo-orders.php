@@ -223,6 +223,14 @@ class SIWO_Orders {
                                         }
                                         $total -= $discount;
 
+                                        // ترجمه وضعیت‌ها
+                                        $status_labels = [
+                                            'pending' => __('Pending', 'siteiran-wholesale'),
+                                            'processing' => __('Processing', 'siteiran-wholesale'),
+                                            'completed' => __('Completed', 'siteiran-wholesale'),
+                                            'cancelled' => __('Cancelled', 'siteiran-wholesale'),
+                                        ];
+
                                         // رنگ‌بندی وضعیت‌ها
                                         $status_class = '';
                                         switch ($status) {
@@ -244,7 +252,7 @@ class SIWO_Orders {
                                             <td>#<?php echo esc_html($order_id); ?></td>
                                             <td><?php echo esc_html($customer ? $customer->display_name : __('Unknown', 'siteiran-wholesale')); ?></td>
                                             <td><?php echo wc_price($total); ?></td>
-                                            <td><span class="<?php echo esc_attr($status_class); ?>"><?php echo esc_html(ucfirst($status)); ?></span></td>
+                                            <td><span class="<?php echo esc_attr($status_class); ?>"><?php echo esc_html($status_labels[$status] ?? ucfirst($status)); ?></span></td>
                                             <td><?php echo get_the_date(); ?></td>
                                             <td>
                                                 <!-- دکمه مشاهده سفارش -->
@@ -422,8 +430,20 @@ class SIWO_Orders {
         $customer = get_userdata($customer_id);
         $status = get_post_meta($order_id, 'siwo_status', true);
 
-        $subject = sprintf(__('Order #%s - %s', 'siteiran-wholesale'), $order_id, ucfirst($action));
-        $message = sprintf(__('Order #%s has been %s.', 'siteiran-wholesale'), $order_id, $action);
+        // ترجمه action
+        $action_labels = [
+            'pending' => __('Pending', 'siteiran-wholesale'),
+            'processing' => __('Processing', 'siteiran-wholesale'),
+            'completed' => __('Completed', 'siteiran-wholesale'),
+            'cancelled' => __('Cancelled', 'siteiran-wholesale'),
+            'created' => __('Created', 'siteiran-wholesale'),
+            'updated' => __('Updated', 'siteiran-wholesale'),
+            'converted' => __('Converted', 'siteiran-wholesale'),
+        ];
+        $translated_action = $action_labels[$action] ?? ucfirst($action);
+
+        $subject = sprintf(__('Order #%s - %s', 'siteiran-wholesale'), $order_id, $translated_action);
+        $message = sprintf(__('Order #%s has been %s.', 'siteiran-wholesale'), $order_id, $translated_action);
 
         // ارسال ایمیل به مشتری
         if ($notify_customer && in_array($notification_method, ['email', 'both'])) {
@@ -469,82 +489,86 @@ class SIWO_Orders {
     /**
      * متد برای ارسال SMS از طریق SMS.ir
      */
-/**
- * متد برای ارسال SMS از طریق SMS.ir
- */
-private function send_sms_ir($order_id, $action) {
-    $api_key = get_option('siwo_sms_ir_api_key', '');
-    $template_id = get_option('siwo_sms_ir_template_id', '');
-    $service_number = get_option('siwo_sms_ir_service_number', '');
+    private function send_sms_ir($order_id, $action) {
+        $api_key = get_option('siwo_sms_ir_api_key', '');
+        $template_id = get_option('siwo_sms_ir_template_id', '');
+        $service_number = get_option('siwo_sms_ir_service_number', '');
 
-    if (empty($api_key) || empty($template_id) || empty($service_number)) {
-        error_log('SIWO: SMS.ir configuration missing for order #' . $order_id);
-        return;
-    }
-
-    $customer_id = get_post_meta($order_id, 'siwo_customer', true);
-    $customer = get_userdata($customer_id);
-    $phone = get_user_meta($customer_id, 'billing_phone', true);
-    $admin_phone = get_option('siwo_admin_phone', '');
-
-    $sms_params = get_option('siwo_sms_params', []);
-    $parameters = [];
-    foreach ($sms_params as $param) {
-        $value = '';
-        switch ($param['name']) {
-            case 'ORDER_ID':
-                $value = $order_id;
-                break;
-            case 'STATUS':
-                $value = get_post_meta($order_id, 'siwo_status', true);
-                break;
-            case 'PRODUCTS':
-                global $wpdb;
-                $items = $wpdb->get_results($wpdb->prepare(
-                    "SELECT * FROM {$wpdb->prefix}siwo_order_items WHERE order_id = %d",
-                    $order_id
-                ), ARRAY_A);
-                $products = [];
-                foreach ($items as $item) {
-                    $product = wc_get_product($item['product_id']);
-                    if ($product) {
-                        $products[] = $product->get_name() . ' (' . $item['quantity'] . ')';
-                    }
-                }
-                $value = implode(', ', $products);
-                break;
-            case 'NOTES':
-                $value = get_post_meta($order_id, 'siwo_notes', true);
-                break;
-            case 'FULLNAME':
-            case 'NAME':
-                $full_name = trim($customer->first_name . ' ' . $customer->last_name);
-                $value = $full_name ?: 'مشتری گرامی';
-                break;
-            default:
-                $value = $param['value'];
+        if (empty($api_key) || empty($template_id) || empty($service_number)) {
+            error_log('SIWO: SMS.ir configuration missing for order #' . $order_id);
+            return;
         }
-        $parameters[] = [
-            'name' => $param['name'],
-            'value' => $value,
-        ];
-    }
 
-    $notify_customer = get_option('siwo_notify_customer', 1);
-    $notify_admin = get_option('siwo_notify_admin', 1);
+        $customer_id = get_post_meta($order_id, 'siwo_customer', true);
+        $customer = get_userdata($customer_id);
+        $phone = get_user_meta($customer_id, 'billing_phone', true);
+        $admin_phone = get_option('siwo_admin_phone', '');
 
-    if ($notify_customer && $phone) {
-        $this->send_sms_ir_request($api_key, $template_id, $service_number, $phone, $parameters, $order_id);
-    } else {
-        error_log('SIWO: Customer phone not found for order #' . $order_id);
-    }
+        $sms_params = get_option('siwo_sms_params', []);
+        $parameters = [];
+        foreach ($sms_params as $param) {
+            $value = '';
+            switch ($param['name']) {
+                case 'ORDER_ID':
+                    $value = $order_id;
+                    break;
+                case 'STATUS':
+                    $status = get_post_meta($order_id, 'siwo_status', true);
+                    $status_labels = [
+                        'pending' => __('Pending', 'siteiran-wholesale'),
+                        'processing' => __('Processing', 'siteiran-wholesale'),
+                        'completed' => __('Completed', 'siteiran-wholesale'),
+                        'cancelled' => __('Cancelled', 'siteiran-wholesale'),
+                    ];
+                    $value = $status_labels[$status] ?? ucfirst($status);
+                    break;
+                case 'PRODUCTS':
+                    global $wpdb;
+                    $items = $wpdb->get_results($wpdb->prepare(
+                        "SELECT * FROM {$wpdb->prefix}siwo_order_items WHERE order_id = %d",
+                        $order_id
+                    ), ARRAY_A);
+                    $products = [];
+                    foreach ($items as $item) {
+                        $product = wc_get_product($item['product_id']);
+                        if ($product) {
+                            $products[] = $product->get_name() . ' (' . $item['quantity'] . ')';
+                        }
+                    }
+                    $value = implode(', ', $products);
+                    break;
+                case 'NOTES':
+                    $value = get_post_meta($order_id, 'siwo_notes', true);
+                    break;
+                case 'FULLNAME':
+                case 'NAME':
+                    $full_name = trim($customer->first_name . ' ' . $customer->last_name);
+                    $value = $full_name ?: 'مشتری گرامی';
+                    break;
+                default:
+                    $value = $param['value'];
+            }
+            $parameters[] = [
+                'name' => $param['name'],
+                'value' => $value,
+            ];
+        }
 
-    if ($notify_admin && $admin_phone) {
-        $this->send_sms_ir_request($api_key, $template_id, $service_number, $admin_phone, $parameters, $order_id);
-    } else {
-        error_log('SIWO: Admin phone not found for order #' . $order_id);
+        $notify_customer = get_option('siwo_notify_customer', 1);
+        $notify_admin = get_option('siwo_notify_admin', 1);
+
+        if ($notify_customer && $phone) {
+            $this->send_sms_ir_request($api_key, $template_id, $service_number, $phone, $parameters, $order_id);
+        } else {
+            error_log('SIWO: Customer phone not found for order #' . $order_id);
+        }
+
+        if ($notify_admin && $admin_phone) {
+            $this->send_sms_ir_request($api_key, $template_id, $service_number, $admin_phone, $parameters, $order_id);
+        } else {
+            error_log('SIWO: Admin phone not found for order #' . $order_id);
+        }
     }
-}
 
     /**
      * متد برای ارسال درخواست SMS به SMS.ir
@@ -603,6 +627,15 @@ private function send_sms_ir($order_id, $action) {
         $notes = get_post_meta($order_id, 'siwo_notes', true);
         $discount = get_post_meta($order_id, 'siwo_discount', true) ?: 0;
 
+        // ترجمه وضعیت
+        $status_labels = [
+            'pending' => __('Pending', 'siteiran-wholesale'),
+            'processing' => __('Processing', 'siteiran-wholesale'),
+            'completed' => __('Completed', 'siteiran-wholesale'),
+            'cancelled' => __('Cancelled', 'siteiran-wholesale'),
+        ];
+        $translated_status = $status_labels[$status] ?? ucfirst($status);
+
         $items = $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}siwo_order_items WHERE order_id = %d",
             $order_id
@@ -624,7 +657,7 @@ private function send_sms_ir($order_id, $action) {
         $data = [
             'invoice_number' => $order_id,
             'customer' => $customer ? $customer->display_name : __('Unknown', 'siteiran-wholesale'),
-            'status' => ucfirst($status),
+            'status' => $translated_status,
             'date' => get_the_date('', $order_id),
             'products' => $products,
             'notes' => $notes,

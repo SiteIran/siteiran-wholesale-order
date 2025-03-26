@@ -10,6 +10,12 @@
  * Text Domain: siteiran-wholesale
  */
 
+// بارگذاری فایل‌های ترجمه
+function siteiran_wholesale_load_textdomain() {
+    load_plugin_textdomain('siteiran-wholesale', false, dirname(plugin_basename(__FILE__)) . '/languages/');
+}
+add_action('plugins_loaded', 'siteiran_wholesale_load_textdomain');
+
 if (!defined('ABSPATH')) {
     exit;
 }
@@ -111,7 +117,6 @@ function siwo_check_woocommerce() {
 }
 add_action('plugins_loaded', 'siwo_check_woocommerce');
 
-
 register_activation_hook(__FILE__, 'siwo_create_order_items_table');
 
 function siwo_create_order_items_table() {
@@ -133,10 +138,6 @@ function siwo_create_order_items_table() {
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql);
 }
-
-
-
-
 
 function siwo_migrate_order_items() {
     global $wpdb;
@@ -173,6 +174,3 @@ function siwo_migrate_order_items() {
 
 // موقع فعال‌سازی پلاگین اجرا بشه
 register_activation_hook(__FILE__, 'siwo_migrate_order_items');
-
-
-    
