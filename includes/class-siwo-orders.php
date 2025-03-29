@@ -498,11 +498,13 @@ class SIWO_Orders {
             error_log('SIWO: SMS.ir configuration missing for order #' . $order_id);
             return;
         }
-
         $customer_id = get_post_meta($order_id, 'siwo_customer', true);
         $customer = get_userdata($customer_id);
         $phone = get_user_meta($customer_id, 'billing_phone', true);
         $admin_phone = get_option('siwo_admin_phone', '');
+
+        // error_log("Error: " . $customer_id . " Order: " . $order_id);
+        // die();
 
         $sms_params = get_option('siwo_sms_params', []);
         $parameters = [];
@@ -694,4 +696,4 @@ class SIWO_Orders {
 add_action('wp_ajax_siwo_get_order_data', [new SIWO_Orders(), 'get_order_data']);
 
 // ثبت هوک برای ارسال اعلان‌ها هنگام ثبت یا ویرایش سفارش
-add_action('save_post_siwo_order', [new SIWO_Orders(), 'handle_order_notifications'], 10, 3);
+//add_action('save_post_siwo_order', [new SIWO_Orders(), 'handle_order_notifications'], 10, 3);

@@ -117,29 +117,28 @@ class SIWO_Admin {
             $discount = floatval($_POST['siwo_discount']);
             $products = isset($_POST['siwo_products']) ? (array) $_POST['siwo_products'] : [];
             $quantities = isset($_POST['siwo_products_quantity']) ? (array) $_POST['siwo_products_quantity'] : [];
-    
+        
             $order_data = [
                 'post_title' => sprintf(__('Order #%s', 'siteiran-wholesale'), $order_id ? $order_id : 'New'),
                 'post_type' => 'siwo_order',
                 'post_status' => 'publish',
             ];
-    
+        
             if ($is_edit) {
                 $order_data['ID'] = $order_id;
                 wp_update_post($order_data);
             } else {
                 $order_id = wp_insert_post($order_data);
             }
-    
+        
+            // ذخیره متادیتا
             update_post_meta($order_id, 'siwo_customer', $customer_id);
             update_post_meta($order_id, 'siwo_status', $status);
             update_post_meta($order_id, 'siwo_notes', $notes);
             update_post_meta($order_id, 'siwo_discount', $discount);
-    
-            // حذف آیتم‌های قدیمی
+        
+            // حذف و اضافه آیتم‌های سفارش
             $wpdb->delete($wpdb->prefix . 'siwo_order_items', ['order_id' => $order_id], ['%d']);
-    
-            // اضافه کردن محصولات جدید
             foreach ($products as $index => $product_id) {
                 $product_id = intval($product_id);
                 $quantity = isset($quantities[$index]) ? intval($quantities[$index]) : 0;
@@ -159,7 +158,11 @@ class SIWO_Admin {
                     }
                 }
             }
-    
+        
+            // فراخوانی تابع اعلان‌ها بعد از ذخیره همه داده‌ها
+            $orders_handler = new SIWO_Orders();
+            $orders_handler->send_notifications($order_id, $is_edit ? 'updated' : 'created');
+        
             wp_redirect(admin_url('admin.php?page=siwo-orders'));
             exit;
         }
