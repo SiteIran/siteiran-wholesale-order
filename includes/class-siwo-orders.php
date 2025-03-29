@@ -512,6 +512,7 @@ class SIWO_Orders {
             $value = '';
             switch ($param['name']) {
                 case 'ORDER_ID':
+                case 'ORDER':
                     $value = $order_id;
                     break;
                 case 'STATUS':
