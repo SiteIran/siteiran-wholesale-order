@@ -725,5 +725,5 @@ class SIWO_Admin {
         }
     
         wp_send_json($results);
-    }
+    }    
 }

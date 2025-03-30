@@ -5,29 +5,36 @@ jQuery(document).ready(function($) {
         allowClear: true
     });
 
-    // فعال‌سازی Select2 برای جستجوی محصولات
-    $('.siwo-select2-product').select2({
-        ajax: {
-            url: siwo_ajax.ajax_url,
-            dataType: 'json',
-            delay: 250,
-            data: function(params) {
-                return {
-                    action: 'siwo_search_products',
-                    term: params.term || '',
-                    selected_id: $(this).val() || ''
-                };
+    // فعال‌سازی Select2 برای جستجوی محصولات (برای همه موارد)
+    function initializeProductSelect2(element) {
+        element.select2({
+            ajax: {
+                url: siwo_ajax.ajax_url,
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        action: 'siwo_search_products',
+                        term: params.term || '',
+                        selected_id: $(this).val() || ''
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data
+                    };
+                },
+                cache: true
             },
-            processResults: function(data) {
-                return {
-                    results: data
-                };
-            },
-            cache: true
-        },
-        placeholder: siwo_translations.search_product,
-        minimumInputLength: 1,
-        allowClear: true
+            placeholder: siwo_translations.search_product,
+            minimumInputLength: 1,
+            allowClear: true
+        });
+    }
+
+    // اعمال Select2 به محصولات موجود در صفحه
+    $('.siwo-select2-product').each(function() {
+        initializeProductSelect2($(this));
     });
 
     // افزودن محصول جدید در فرم سفارش
@@ -45,28 +52,7 @@ jQuery(document).ready(function($) {
         $('#siwo-products').append(productRow);
 
         // فعال‌سازی Select2 برای ردیف جدید
-        $('#siwo-products .siwo-select2-product').last().select2({
-            ajax: {
-                url: siwo_ajax.ajax_url,
-                dataType: 'json',
-                delay: 250,
-                data: function(params) {
-                    return {
-                        action: 'siwo_search_products',
-                        term: params.term || ''
-                    };
-                },
-                processResults: function(data) {
-                    return {
-                        results: data
-                    };
-                },
-                cache: true
-            },
-            placeholder: siwo_translations.search_product,
-            minimumInputLength: 1,
-            allowClear: true
-        });
+        initializeProductSelect2($('#siwo-products .siwo-select2-product').last());
     });
 
     // حذف ردیف محصول
@@ -133,7 +119,7 @@ jQuery(document).ready(function($) {
         $(this).closest('.siwo-sms-param-row').remove();
     });
 
-    // نمایش جزئیات سفارش در مودال
+    // نمایش جزئیات سفارش در ادمین (مودال)
     $('.siwo-view-order').on('click', function(e) {
         e.preventDefault();
         var orderId = $(this).data('order-id');
@@ -201,7 +187,6 @@ jQuery(document).ready(function($) {
                     var printContent = '<html><head><title>' + siwo_translations.order_invoice + ' #' + data.invoice_number + '</title>';
                     printContent += '<style>body { font-family: Arial, sans-serif; margin: 20px; direction: rtl; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; text-align: right; } th { background-color: #f2f2f2; } .logo { max-width: 150px; max-height: 150px; margin-bottom: 20px; float: left; }</style>';
                     printContent += '</head><body>';
-                    // اضافه کردن لوگو
                     if (siwo_settings.logo) {
                         printContent += '<img src="' + siwo_settings.logo + '" class="logo" alt="Logo" />';
                     }
@@ -241,6 +226,85 @@ jQuery(document).ready(function($) {
             error: function() {
                 alert(siwo_translations.error_fetching_order_print);
                 printWindow.close();
+            }
+        });
+    });
+
+    // ثبت سفارش با آجاکس
+    $('#siwo-order-form').on('submit', function(e) {
+        e.preventDefault();
+        var formData = $(this).serialize();
+
+        $.ajax({
+            url: siwo_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'siwo_save_order',
+                form_data: formData,
+                nonce: siwo_ajax.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    alert('سفارش با موفقیت ثبت شد!');
+                    $('#siwo-order-form')[0].reset();
+                    // به‌روزرسانی لیست سفارشات (اختیاری)
+                    location.reload(); // برای رفرش صفحه و نمایش سفارش جدید
+                } else {
+                    alert('خطایی رخ داد: ' + (response.data.message || 'مشکل ناشناخته'));
+                }
+            },
+            error: function() {
+                alert('خطا در ارتباط با سرور!');
+            }
+        });
+    });
+
+    // نمایش جزئیات سفارش در فرانت‌اند (My Account)
+    $(document).on('click', '.siwo-order-details', function(e) {
+        e.preventDefault();
+        var orderId = $(this).data('order-id');
+
+        $.ajax({
+            url: siwo_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'siwo_get_order_details',
+                order_id: orderId,
+                nonce: siwo_ajax.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    var data = response.data;
+                    var html = '<p><strong>' + siwo_translations.order_id + '</strong> ' + orderId + '</p>';
+                    html += '<p><strong>' + siwo_translations.status + '</strong> ' + data.status + '</p>';
+                    html += '<h5>' + siwo_translations.products + '</h5>';
+                    html += '<table class="table table-bordered"><thead><tr><th>' + siwo_translations.product + '</th><th>' + siwo_translations.quantity + '</th><th>' + siwo_translations.price + '</th><th>' + siwo_translations.total + '</th></tr></thead><tbody>';
+                    var grandTotal = 0;
+                    $.each(data.items, function(index, item) {
+                        var total = item.quantity * item.price;
+                        grandTotal += total;
+                        html += '<tr><td>' + item.product_name + '</td><td>' + item.quantity + '</td><td>' + item.price + '</td><td>' + total.toFixed(2) + '</td></tr>';
+                    });
+                    html += '</tbody></table>';
+                    if (data.notes) {
+                        html += '<p><strong>' + siwo_translations.notes + '</strong> ' + data.notes + '</p>';
+                    }
+                    var discount = parseFloat(data.discount) || 0;
+                    var finalTotal = grandTotal - discount;
+                    html += '<p><strong>' + siwo_translations.subtotal + '</strong> ' + grandTotal.toFixed(2) + '</p>';
+                    if (discount > 0) {
+                        html += '<p><strong>' + siwo_translations.discount + '</strong> -' + discount.toFixed(2) + '</p>';
+                    }
+                    html += '<p><strong>' + siwo_translations.total + '</strong> ' + finalTotal.toFixed(2) + '</p>';
+
+                    $('#siwo-order-details').html(html);
+                    $('#siwoOrderModal').modal('show');
+                } else {
+                    alert('خطا در بارگذاری جزئیات سفارش: ' + (response.data.message || 'مشکل ناشناخته'));
+                }
+            },
+            error: function() {
+                alert('خطا در ارتباط با سرور!');
             }
         });
     });

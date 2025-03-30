@@ -691,6 +691,66 @@ class SIWO_Orders {
         // ارسال اعلان‌ها
         $this->send_notifications($post_id, $action);
     }
+
+
+    // تابع ذخیره‌سازی سفارش
+    public static function save_ajax_order($order_data) {
+        global $wpdb;
+    
+        $user_id = get_current_user_id(); // شناسه کاربر فعلی
+        $customer_id = $user_id; // چون توی My Account کاربر خودش سفارش می‌ده
+        $status = isset($order_data['siwo_status']) ? sanitize_text_field($order_data['siwo_status']) : 'pending';
+        $notes = isset($order_data['siwo_notes']) ? sanitize_textarea_field($order_data['siwo_notes']) : '';
+        $discount = isset($order_data['siwo_discount']) ? floatval($order_data['siwo_discount']) : 0;
+        $products = isset($order_data['siwo_products']) ? (array) $order_data['siwo_products'] : [];
+        $quantities = isset($order_data['siwo_products_quantity']) ? (array) $order_data['siwo_products_quantity'] : [];
+    
+        $order_data_post = [
+            'post_title' => sprintf(__('Order #%s', 'siteiran-wholesale'), 'New'),
+            'post_type' => 'siwo_order',
+            'post_status' => 'publish',
+        ];
+    
+        $order_id = wp_insert_post($order_data_post);
+    
+        if ($order_id) {
+            // ذخیره متادیتا
+            update_post_meta($order_id, 'siwo_customer', $customer_id);
+            update_post_meta($order_id, 'siwo_status', $status);
+            update_post_meta($order_id, 'siwo_notes', $notes);
+            update_post_meta($order_id, 'siwo_discount', $discount);
+    
+            // ذخیره آیتم‌ها
+            foreach ($products as $index => $product_id) {
+                $product_id = intval($product_id);
+                $quantity = isset($quantities[$index]) ? intval($quantities[$index]) : 0;
+                if ($product_id && $quantity > 0) {
+                    $product = wc_get_product($product_id);
+                    if ($product) {
+                        $wpdb->insert(
+                            $wpdb->prefix . 'siwo_order_items',
+                            [
+                                'order_id' => $order_id,
+                                'product_id' => $product_id,
+                                'quantity' => $quantity,
+                                'price' => $product->get_price(),
+                            ],
+                            ['%d', '%d', '%d', '%f']
+                        );
+                    }
+                }
+            }
+    
+            // ارسال اعلان
+            $orders_handler = new SIWO_Orders();
+            $orders_handler->send_notifications($order_id, 'created');
+    
+            return $order_id;
+        }
+    
+        return false;
+    }
+
 }
 
 // ثبت اکشن AJAX برای دریافت داده‌های سفارش
